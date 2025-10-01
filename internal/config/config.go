@@ -79,6 +79,27 @@ type Config struct {
 	RefreshInterval int          `yaml:"refreshinterval,omitempty"`
 }
 
+var Defaults = Config{
+	Database: "nom.db",
+	Ordering: constants.DefaultOrdering,
+	Theme: Theme{
+		Glamour:           "dark",
+		SelectedItemColor: "170",
+		TitleColor:        "62",
+		TitleColorFg:      "231",
+		FilterColor:       "62",
+		ReadIcon:          "\u2713",
+	},
+	HTTPOptions: &HTTPOptions{
+		MinTLSVersion: tls.VersionName(tls.VersionTLS12),
+	},
+	Filtering: FilterConfig{
+		DefaultIncludeFeedName: false,
+	},
+	RefreshInterval: 0,
+	Feeds:           []Feed{},
+}
+
 var sampleConfigFile string = `# See https://github.com/guyfedwards/nom/blob/master/README.md
 # for configuration documentation.
 
@@ -97,7 +118,7 @@ func (c *Config) ToggleShowFavourites() {
 	c.ShowFavourites = !c.ShowFavourites
 }
 
-func New(configPath string, pager string, previewFeeds []string, version string) (*Config, error) {
+func New(configPath string, version string) (*Config, error) {
 	var configDir string
 
 	if configPath == "" {
@@ -109,37 +130,13 @@ func New(configPath string, pager string, previewFeeds []string, version string)
 		configDir = filepath.Join(userConfigDir, "nom")
 		configPath = filepath.Join(configDir, "config.yml")
 	} else {
-		configDir, _ = filepath.Split(configPath)
-	}
-
-	var f []Feed
-	for _, feedURL := range previewFeeds {
-		f = append(f, Feed{URL: feedURL})
+		configDir = filepath.Dir(configPath)
 	}
 
 	return &Config{
-		ConfigPath:   configPath,
-		ConfigDir:    configDir,
-		Pager:        pager,
-		Database:     "nom.db",
-		Feeds:        []Feed{},
-		PreviewFeeds: f,
-		Theme: Theme{
-			Glamour:           "dark",
-			SelectedItemColor: "170",
-			TitleColor:        "62",
-			TitleColorFg:      "231",
-			FilterColor:       "62",
-			ReadIcon:          "\u2713",
-		},
-		RefreshInterval: 0,
-		Ordering:        constants.DefaultOrdering,
-		Filtering: FilterConfig{
-			DefaultIncludeFeedName: false,
-		},
-		HTTPOptions: &HTTPOptions{
-			MinTLSVersion: tls.VersionName(tls.VersionTLS12),
-		},
+		ConfigPath: configPath,
+		ConfigDir:  configDir,
+		Version:    version,
 	}, nil
 }
 
@@ -158,81 +155,37 @@ func (c *Config) Load() error {
 		return fmt.Errorf("config.Load: %w", err)
 	}
 
-	// manually set config values from fileconfig, messy solve for config priority
-	var fileConfig Config
-	err = yaml.Unmarshal(rawData, &fileConfig)
+	// Unmarshal directly into config
+	err = yaml.Unmarshal(rawData, c)
 	if err != nil {
 		return fmt.Errorf("config.Read: %w", err)
 	}
 
-	c.ShowRead = fileConfig.ShowRead
-	c.AutoRead = fileConfig.AutoRead
-	c.Feeds = fileConfig.Feeds
-	if fileConfig.Database != "" {
-		c.Database = fileConfig.Database
-	}
-	c.Openers = fileConfig.Openers
-	c.ShowFavourites = fileConfig.ShowFavourites
-	c.Filtering = fileConfig.Filtering
-	c.RefreshInterval = fileConfig.RefreshInterval
+	// Apply defaults for zero values
+	c.applyDefaults()
 
-	if fileConfig.HTTPOptions != nil {
-		if _, err := TLSVersion(fileConfig.HTTPOptions.MinTLSVersion); err != nil {
+	// Validate HTTPOptions
+	if c.HTTPOptions != nil {
+		if _, err := TLSVersion(c.HTTPOptions.MinTLSVersion); err != nil {
 			return err
 		}
-		c.HTTPOptions = fileConfig.HTTPOptions
 	}
 
-	if len(fileConfig.Ordering) > 0 {
-		c.Ordering = fileConfig.Ordering
-	}
-
-	if len(fileConfig.Theme.ReadIcon) > 0 {
-		c.Theme.ReadIcon = fileConfig.Theme.ReadIcon
-	}
-
-	if fileConfig.Theme.Glamour != "" {
-		c.Theme.Glamour = fileConfig.Theme.Glamour
-	}
-
-	if fileConfig.Theme.SelectedItemColor != "" {
-		c.Theme.SelectedItemColor = fileConfig.Theme.SelectedItemColor
-	}
-
-	if fileConfig.Theme.TitleColor != "" {
-		c.Theme.TitleColor = fileConfig.Theme.TitleColor
-	}
-
-	if fileConfig.Theme.TitleColorFg != "" {
-		c.Theme.TitleColorFg = fileConfig.Theme.TitleColorFg
-	}
-
-	if fileConfig.Theme.FilterColor != "" {
-		c.Theme.FilterColor = fileConfig.Theme.FilterColor
-	}
-
-	// only set pager if it's not defined already, config file is lower
-	// precidence than flags/env that can be passed to New
-	if c.Pager == "" {
-		c.Pager = fileConfig.Pager
-	}
-
-	if fileConfig.Backends != nil {
-		if fileConfig.Backends.Miniflux != nil {
-			mffeeds, err := getMinifluxFeeds(fileConfig.Backends.Miniflux)
+	// Process backends (requires HTTP calls)
+	if c.Backends != nil {
+		if c.Backends.Miniflux != nil {
+			mffeeds, err := getMinifluxFeeds(c.Backends.Miniflux)
 			if err != nil {
 				return err
 			}
-
 			c.Feeds = append(c.Feeds, mffeeds...)
 		}
 
-		if fileConfig.Backends.FreshRSS != nil {
-			freshfeeds, err := getFreshRSSFeeds(fileConfig.Backends.FreshRSS)
+		if c.Backends.FreshRSS != nil {
+			freshfeeds, err := getFreshRSSFeeds(c.Backends.FreshRSS)
 			if err != nil {
 				return err
 			}
-
 			c.Feeds = append(c.Feeds, freshfeeds...)
 		}
 	}
@@ -306,4 +259,55 @@ func (c *Config) setupConfigDir() error {
 	}
 
 	return err
+}
+
+// applyDefaults fills in zero values from Defaults
+func (c *Config) applyDefaults() {
+	if c.Database == "" {
+		c.Database = Defaults.Database
+	}
+
+	if c.Ordering == "" {
+		c.Ordering = Defaults.Ordering
+	}
+
+	// Apply theme defaults for zero values
+	if c.Theme.Glamour == "" {
+		c.Theme.Glamour = Defaults.Theme.Glamour
+	}
+	if c.Theme.SelectedItemColor == "" {
+		c.Theme.SelectedItemColor = Defaults.Theme.SelectedItemColor
+	}
+	if c.Theme.TitleColor == "" {
+		c.Theme.TitleColor = Defaults.Theme.TitleColor
+	}
+	if c.Theme.TitleColorFg == "" {
+		c.Theme.TitleColorFg = Defaults.Theme.TitleColorFg
+	}
+	if c.Theme.FilterColor == "" {
+		c.Theme.FilterColor = Defaults.Theme.FilterColor
+	}
+	if c.Theme.ReadIcon == "" {
+		c.Theme.ReadIcon = Defaults.Theme.ReadIcon
+	}
+
+	if c.HTTPOptions == nil {
+		c.HTTPOptions = Defaults.HTTPOptions
+	} else if c.HTTPOptions.MinTLSVersion == "" {
+		c.HTTPOptions.MinTLSVersion = Defaults.HTTPOptions.MinTLSVersion
+	}
+}
+
+// ApplyCLIOverrides applies CLI flags (highest priority)
+func (c *Config) ApplyCLIOverrides(pager string, previewFeeds []string) {
+	if pager != "" {
+		c.Pager = pager
+	}
+
+	if len(previewFeeds) > 0 {
+		c.PreviewFeeds = make([]Feed, len(previewFeeds))
+		for i, url := range previewFeeds {
+			c.PreviewFeeds[i] = Feed{URL: url}
+		}
+	}
 }

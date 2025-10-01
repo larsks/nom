@@ -96,7 +96,7 @@ func (r *Unread) Execute(args []string) error {
 }
 
 func getCmds() (*commands.Commands, error) {
-	cfg, err := config.New(options.ConfigPath, options.Pager, options.PreviewFeeds, version)
+	cfg, err := config.New(options.ConfigPath, version)
 	if err != nil {
 		return nil, err
 	}
@@ -104,6 +104,8 @@ func getCmds() (*commands.Commands, error) {
 	if err = cfg.Load(); err != nil {
 		return nil, err
 	}
+
+	cfg.ApplyCLIOverrides(options.Pager, options.PreviewFeeds)
 
 	s, err := store.NewSQLiteStore(cfg.ConfigDir, cfg.Database)
 	if err != nil {

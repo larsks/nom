@@ -21,7 +21,7 @@ func cleanup() {
 }
 
 func TestNewDefault(t *testing.T) {
-	c, _ := New("", "", []string{}, "")
+	c, _ := New("", "")
 	ucd, _ := os.UserConfigDir()
 
 	test.Equal(t, fmt.Sprintf("%s/nom/config.yml", ucd), c.ConfigPath, "Wrong defaults set")
@@ -29,25 +29,25 @@ func TestNewDefault(t *testing.T) {
 }
 
 func TestConfigCustomPath(t *testing.T) {
-	c, _ := New("foo/bar.yml", "", []string{}, "")
+	c, _ := New("foo/bar.yml", "")
 
 	test.Equal(t, "foo/bar.yml", c.ConfigPath, "Config path override not set")
 }
 
 func TestConfigDir(t *testing.T) {
-	c, _ := New("foo/bizzle/bar.yml", "", []string{}, "")
+	c, _ := New("foo/bizzle/bar.yml", "")
 
 	test.Equal(t, "foo/bizzle", c.ConfigDir, "ConfigDir not correctly parsed")
 }
 
 func TestNewOverride(t *testing.T) {
-	c, _ := New("foobar", "", []string{}, "")
+	c, _ := New("foobar", "")
 
 	test.Equal(t, "foobar", c.ConfigPath, "Override not respected")
 }
 
 func TestPreviewFeedsOverrideFeedsFromConfigFile(t *testing.T) {
-	c, _ := New(configFixturePath, "", []string{}, "")
+	c, _ := New(configFixturePath, "")
 	c.Load()
 	feeds := c.GetFeeds()
 	test.Equal(t, 3, len(feeds), "Incorrect feeds number")
@@ -55,8 +55,9 @@ func TestPreviewFeedsOverrideFeedsFromConfigFile(t *testing.T) {
 	test.Equal(t, "bird", feeds[1].URL, "Second feed in a config must be bird")
 	test.Equal(t, "dog", feeds[2].URL, "Third feed in a config must be dog")
 
-	c, _ = New(configFixturePath, "", []string{"pumpkin", "radish"}, "")
+	c, _ = New(configFixturePath, "")
 	c.Load()
+	c.ApplyCLIOverrides("", []string{"pumpkin", "radish"})
 	feeds = c.GetFeeds()
 	test.Equal(t, 2, len(feeds), "Incorrect feeds number")
 	test.Equal(t, "pumpkin", feeds[0].URL, "First feed in a config must be pumpkin")
@@ -64,7 +65,7 @@ func TestPreviewFeedsOverrideFeedsFromConfigFile(t *testing.T) {
 }
 
 func TestConfigLoad(t *testing.T) {
-	c, _ := New(configFixturePath, "", []string{}, "")
+	c, _ := New(configFixturePath, "")
 	err := c.Load()
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -80,12 +81,14 @@ func TestConfigLoad(t *testing.T) {
 }
 
 func TestConfigLoadPrecidence(t *testing.T) {
-	c, _ := New(configFixturePath, "testpager", []string{}, "")
+	c, _ := New(configFixturePath, "")
 
 	err := c.Load()
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
+
+	c.ApplyCLIOverrides("testpager", []string{})
 
 	if c.Pager != "testpager" {
 		t.Fatalf("testpager overridden")
@@ -93,7 +96,7 @@ func TestConfigLoadPrecidence(t *testing.T) {
 }
 
 func TestConfigAddFeed(t *testing.T) {
-	c, _ := New(configFixtureWritePath, "", []string{}, "")
+	c, _ := New(configFixtureWritePath, "")
 
 	err := c.Load()
 	if err != nil {
@@ -120,7 +123,8 @@ func TestConfigAddFeed(t *testing.T) {
 }
 
 func TestConfigSetupDir(t *testing.T) {
-	err := setupConfigDir(configDir)
+	c, _ := New(configPath, "")
+	err := c.setupConfigDir()
 	if err != nil {
 		t.Fail()
 		return
