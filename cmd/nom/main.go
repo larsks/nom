@@ -8,7 +8,7 @@ import (
 
 	"github.com/guyfedwards/nom/v2/internal/commands"
 	"github.com/guyfedwards/nom/v2/internal/config"
-	"github.com/guyfedwards/nom/v2/internal/store"
+	store "github.com/guyfedwards/nom/v2/internal/store/sqlitestore"
 )
 
 type Options struct {
