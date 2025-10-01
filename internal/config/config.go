@@ -138,7 +138,7 @@ func (c *Config) IsPreviewMode() bool {
 }
 
 func (c *Config) Load() error {
-	err := setupConfigDir(c.ConfigDir)
+	err := c.setupConfigDir()
 	if err != nil {
 		return fmt.Errorf("config Load: %w", err)
 	}
@@ -275,10 +275,8 @@ func (c *Config) GetFeeds() []Feed {
 	return c.Feeds
 }
 
-func setupConfigDir(configDir string) error {
-	configFile := filepath.Join(configDir, "config.yml")
-
-	_, err := os.Stat(configFile)
+func (c *Config) setupConfigDir() error {
+	_, err := os.Stat(c.ConfigPath)
 
 	// if configFile exists, do nothing
 	if !errors.Is(err, os.ErrNotExist) {
@@ -286,13 +284,13 @@ func setupConfigDir(configDir string) error {
 	}
 
 	// if not, create directory. noop if directory exists
-	err = os.MkdirAll(configDir, 0755)
+	err = os.MkdirAll(c.ConfigDir, 0755)
 	if err != nil {
 		return fmt.Errorf("setupConfigDir: %w", err)
 	}
 
 	// then create the file
-	_, err = os.Create(configFile)
+	_, err = os.Create(c.ConfigPath)
 	if err != nil {
 		return fmt.Errorf("setupConfigDir: %w", err)
 	}
