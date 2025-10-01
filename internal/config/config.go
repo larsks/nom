@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"gopkg.in/yaml.v3"
 
@@ -98,12 +97,9 @@ func New(configPath string, pager string, previewFeeds []string, version string)
 		}
 
 		configDir = filepath.Join(userConfigDir, "nom")
-		configPath = filepath.Join(configDir, "/config.yml")
+		configPath = filepath.Join(configDir, "config.yml")
 	} else {
-		// strip off end of path as config filename
-		sep := string(os.PathSeparator)
-		parts := strings.Split(configPath, sep)
-		configDir = strings.Join(parts[0:len(parts)-1], sep)
+		configDir, _ = filepath.Split(configPath)
 	}
 
 	var f []Feed
@@ -280,7 +276,7 @@ func (c *Config) GetFeeds() []Feed {
 }
 
 func setupConfigDir(configDir string) error {
-	configFile := filepath.Join(configDir, "/config.yml")
+	configFile := filepath.Join(configDir, "config.yml")
 
 	_, err := os.Stat(configFile)
 
