@@ -1,5 +1,7 @@
 .PHONY: build test testw sqlite vhs
 
+export CGO_ENABLED=0
+
 build:
 	go build -o nom cmd/nom/main.go
 
@@ -35,7 +37,7 @@ sysroot-unpack:
 release-dry-run:
 	@docker run \
 		--rm \
-		-e CGO_ENABLED=1 \
+		-e CGO_ENABLED=0 \
 		-v /var/run/docker.sock:/var/run/docker.sock \
 		-v `pwd`:/go/src/$(PACKAGE_NAME) \
 		-v `pwd`/sysroot:/sysroot \
@@ -51,7 +53,7 @@ release:
 	fi
 	docker run \
 		--rm \
-		-e CGO_ENABLED=1 \
+		-e CGO_ENABLED=0 \
 		--env-file .release-env \
 		-v /var/run/docker.sock:/var/run/docker.sock \
 		-v `pwd`:/go/src/$(PACKAGE_NAME) \

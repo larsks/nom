@@ -8,7 +8,7 @@ import (
 
 	"github.com/guyfedwards/nom/v2/internal/commands"
 	"github.com/guyfedwards/nom/v2/internal/config"
-	store "github.com/guyfedwards/nom/v2/internal/store/sqlitestore"
+	store "github.com/guyfedwards/nom/v2/internal/store/badgerstore"
 )
 
 type Options struct {
@@ -105,7 +105,7 @@ func getCmds() (*commands.Commands, error) {
 		return nil, err
 	}
 
-	s, err := store.NewSQLiteStore(cfg.CacheDir, cfg.Database)
+	s, err := store.NewBadgerStore(cfg.CacheDir, cfg.Database)
 	if err != nil {
 		return nil, fmt.Errorf("main.go: %w", err)
 	}
