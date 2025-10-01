@@ -79,6 +79,16 @@ type Config struct {
 	RefreshInterval int          `yaml:"refreshinterval,omitempty"`
 }
 
+var sampleConfigFile string = `# See https://github.com/guyfedwards/nom/blob/master/README.md
+# for configuration documentation.
+
+feeds:
+- name: Nom releases
+  url: http://github.com/guyfedwards/nom/releases.atom
+- name: Github changelog
+  url: https://github.blog/changelog/feed/
+`
+
 func (c *Config) ToggleShowRead() {
 	c.ShowRead = !c.ShowRead
 }
@@ -290,7 +300,7 @@ func (c *Config) setupConfigDir() error {
 	}
 
 	// then create the file
-	_, err = os.Create(c.ConfigPath)
+	err = os.WriteFile(c.ConfigPath, []byte(sampleConfigFile), 0644)
 	if err != nil {
 		return fmt.Errorf("setupConfigDir: %w", err)
 	}
