@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"gopkg.in/yaml.v3"
@@ -78,6 +79,22 @@ func TestConfigLoad(t *testing.T) {
 	}
 }
 
+func TestConfigLoadCustomPath(t *testing.T) {
+	customPath := filepath.Join(configDir, "bar.yml")
+	c, _ := New(customPath, "", []string{}, "")
+	err := c.Load()
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	_, err = os.Stat(customPath)
+	if err != nil {
+		t.Fatalf("Config file not created")
+	}
+
+	cleanup()
+}
+
 func TestConfigLoadPrecidence(t *testing.T) {
 	c, _ := New(configFixturePath, "testpager", []string{}, "")
 
@@ -117,20 +134,3 @@ func TestConfigAddFeed(t *testing.T) {
 		t.Fatalf("did not write feed correctly")
 	}
 }
-
-/*
-func TestConfigSetupDir(t *testing.T) {
-	err := setupConfigDir(configDir)
-	if err != nil {
-		t.Fail()
-		return
-	}
-
-	_, err = os.Stat(filepath.Join(configDir, "config.yml"))
-	if err != nil {
-		t.Fail()
-	}
-
-	cleanup()
-}
-*/
