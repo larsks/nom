@@ -96,12 +96,13 @@ func (r *Unread) Execute(args []string) error {
 }
 
 func getCmds() (*commands.Commands, error) {
-	cfg, err := config.New(options.ConfigPath, options.Pager, options.PreviewFeeds, version)
-	if err != nil {
-		return nil, err
-	}
+	cfg := config.New().
+		WithConfigPath(options.ConfigPath).
+		WithPager(options.Pager).
+		WithPreviewFeeds(options.PreviewFeeds).
+		WithVersion(version)
 
-	if err = cfg.Load(); err != nil {
+	if err := cfg.Load(); err != nil {
 		return nil, err
 	}
 
