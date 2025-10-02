@@ -14,6 +14,10 @@ import (
 	"github.com/guyfedwards/nom/v2/internal/store"
 )
 
+const (
+	DefaultDatabaseName = "nom.db"
+)
+
 type SQLiteStore struct {
 	path  string
 	db    *sql.DB
@@ -21,6 +25,15 @@ type SQLiteStore struct {
 }
 
 func NewSQLiteStore(basePath string, dbName string) (*SQLiteStore, error) {
+	if dbName == "" {
+		dbName = DefaultDatabaseName
+	}
+
+	err := os.MkdirAll(basePath, 0700)
+	if err != nil {
+		return nil, fmt.Errorf("NewSQLiteStore: %w", err)
+	}
+
 	dbpath := filepath.Join(basePath, dbName)
 
 	info, _ := os.Stat(dbpath)

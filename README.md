@@ -197,12 +197,14 @@ From the [ProxyFromEnvironment documentation](https://pkg.go.dev/net/http#ProxyF
 
 ## Store
 
-Nom uses sqlite as a store for feeds and metadata. It is stored adjacent to the configuration file in `$XDG_CONFIG_HOME/nom/nom.db`. This can be backed up like any file and will store articles, read state etc. It can also be deleted to start from scratch, re-downloading all articles and no state.
+Nom uses [BadgerDB] as a store for feeds and metadata. It is stored adjacent to the configuration file in `$XDG_CONFIG_HOME/nom/nom.badger`. This directory can be backed up like any other file and will store articles, read state etc. It can also be deleted to start from scratch, re-downloading all articles and no state.
 
-The name of the sqlite file can be overridden in the configuration file, allowing you to have multiple configurations each with their own data store.
+[badgerdb]: https://github.com/hypermodeinc/badger
+
+The name of the database file can be overridden in the configuration file, allowing you to have multiple configurations each with their own data store.
 
 ```yaml
-database: news.db
+database: news.badger
 ```
 
 ## Filtering

@@ -16,7 +16,7 @@ var (
 	ErrFeedAlreadyExists  = errors.New("config.AddFeed: feed already exists")
 	DefaultConfigDirName  = "nom"
 	DefaultConfigFileName = "config.yml"
-	DefaultDatabaseName   = "nom.db"
+	DefaultCacheDirName   = "nom"
 )
 
 type Feed struct {
@@ -66,6 +66,7 @@ type Config struct {
 	ShowFavourites bool `yaml:"showfavourites,omitempty"`
 	Version        string
 	ConfigDir      string       `yaml:"-"`
+	CacheDir       string       `yaml:"-"`
 	Pager          string       `yaml:"pager,omitempty"`
 	Feeds          []Feed       `yaml:"feeds"`
 	Database       string       `yaml:"database"`
@@ -121,6 +122,13 @@ func New(configPath string, pager string, previewFeeds []string, version string)
 		configPath = updateConfigPathIfDir(configPath)
 	}
 
+	userCacheDir, err := os.UserCacheDir()
+	if err != nil {
+		return nil, fmt.Errorf("config.New: %w", err)
+	}
+
+	cacheDir := filepath.Join(userCacheDir, DefaultCacheDirName)
+
 	configDir, _ := filepath.Split(configPath)
 
 	var f []Feed
@@ -131,8 +139,8 @@ func New(configPath string, pager string, previewFeeds []string, version string)
 	return &Config{
 		ConfigPath:      configPath,
 		ConfigDir:       configDir,
+		CacheDir:        cacheDir,
 		Pager:           pager,
-		Database:        DefaultDatabaseName,
 		Feeds:           []Feed{},
 		PreviewFeeds:    f,
 		Theme:           DefaultTheme,
