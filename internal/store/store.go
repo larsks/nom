@@ -31,6 +31,8 @@ type Store interface {
 	GetItemByID(ID int) (Item, error)
 	GetAllFeedURLs() ([]string, error)
 	ToggleRead(ID int) error
+	MarkRead(ID int) error
+	MarkUnread(ID int) error
 	MarkAllRead() error
 	ToggleFavourite(ID int) error
 	DeleteByFeedURL(feedurl string, incFavourites bool) error

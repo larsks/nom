@@ -248,6 +248,28 @@ func (sls SQLiteStore) ToggleRead(ID int) error {
 	return nil
 }
 
+func (sls SQLiteStore) MarkRead(ID int) error {
+	stmt, _ := sls.db.Prepare(`update items set readat = ? where id = ?`)
+
+	_, err := stmt.Exec(time.Now(), ID)
+	if err != nil {
+		return fmt.Errorf("[store.go] MarkRead: %w", err)
+	}
+
+	return nil
+}
+
+func (sls SQLiteStore) MarkUnread(ID int) error {
+	stmt, _ := sls.db.Prepare(`update items set readat = null where id = ?`)
+
+	_, err := stmt.Exec(ID)
+	if err != nil {
+		return fmt.Errorf("[store.go] MarkUnread: %w", err)
+	}
+
+	return nil
+}
+
 func (sls SQLiteStore) MarkAllRead() error {
 	stmt, _ := sls.db.Prepare(`update items set readat = ? where readat is null`)
 
