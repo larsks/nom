@@ -97,6 +97,10 @@ Automatically mark items as read on selection or navigation through items.
 autoread: true
 ```
 
+### Auto read browser (default: false)
+
+Automatically mark items as read when you open them in an external browser.
+
 ### Ordering
 
 Set the default sort ordering of the list

@@ -73,6 +73,7 @@ type Config struct {
 	Backends        *Backends          `yaml:"backends,omitempty"`
 	ShowRead        bool               `yaml:"showread,omitempty"`
 	AutoRead        bool               `yaml:"autoread,omitempty"`
+	AutoReadBrowser bool               `yaml:"autoreadbrowser,omitempty"`
 	Openers         []Opener           `yaml:"openers,omitempty"`
 	Theme           Theme              `yaml:"theme,omitempty"`
 	HTTPOptions     *HTTPOptions       `yaml:"http,omitempty"`

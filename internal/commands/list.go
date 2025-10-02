@@ -272,6 +272,15 @@ func updateList(msg tea.Msg, m model) (tea.Model, tea.Cmd) {
 			}
 
 			current := item.(TUIItem)
+
+			if m.commands.runtime.Config.AutoReadBrowser {
+				err := m.commands.store.ToggleRead(current.ID)
+				if err != nil {
+					return m, tea.Quit
+				}
+				cmds = append(cmds, m.UpdateList())
+			}
+
 			cmd = m.OpenLink(current.URL)
 			cmds = append(cmds, cmd)
 
