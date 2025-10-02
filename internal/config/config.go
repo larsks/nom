@@ -76,6 +76,7 @@ type Config struct {
 	Backends        *Backends    `yaml:"backends,omitempty"`
 	ShowRead        bool         `yaml:"showread,omitempty"`
 	AutoRead        bool         `yaml:"autoread,omitempty"`
+	AutoReadBrowser bool         `yaml:"autoreadbrowser,omitempty"`
 	Openers         []Opener     `yaml:"openers,omitempty"`
 	Theme           Theme        `yaml:"theme,omitempty"`
 	HTTPOptions     *HTTPOptions `yaml:"http,omitempty"`
@@ -170,6 +171,7 @@ func (c *Config) Load() error {
 
 	c.ShowRead = fileConfig.ShowRead
 	c.AutoRead = fileConfig.AutoRead
+	c.AutoReadBrowser = fileConfig.AutoReadBrowser
 	c.Feeds = fileConfig.Feeds
 	if fileConfig.Database != "" {
 		c.Database = fileConfig.Database
