@@ -187,7 +187,7 @@ func updateList(msg tea.Msg, m model) (tea.Model, tea.Cmd) {
 
 			cmds = append(cmds, refreshList(m))
 
-		case key.Matches(msg, ListKeyMap.Read):
+		case key.Matches(msg, ListKeyMap.ToggleRead):
 			if m.list.SettingFilter() {
 				break
 			}
@@ -208,7 +208,7 @@ func updateList(msg tea.Msg, m model) (tea.Model, tea.Cmd) {
 			}
 			m.UpdateList()
 
-		case key.Matches(msg, ListKeyMap.ToggleReads):
+		case key.Matches(msg, ListKeyMap.ToggleShowReads):
 			if m.list.SettingFilter() {
 				break
 			}
@@ -246,7 +246,7 @@ func updateList(msg tea.Msg, m model) (tea.Model, tea.Cmd) {
 
 			cmds = append(cmds, m.UpdateList())
 
-		case key.Matches(msg, ListKeyMap.ToggleFavourites):
+		case key.Matches(msg, ListKeyMap.ToggleShowFavourites):
 			if m.list.SettingFilter() {
 				break
 			}

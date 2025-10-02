@@ -42,6 +42,8 @@ type Store interface {
 	GetItemByID(ID int) (Item, error)
 	GetAllFeedURLs() ([]string, error)
 	ToggleRead(ID int) error
+	MarkRead(ID int) error
+	MarkUnread(ID int) error
 	MarkAllRead() error
 	ToggleFavourite(ID int) error
 	DeleteByFeedURL(feedurl string, incFavourites bool) error
@@ -296,6 +298,28 @@ func (sls SQLiteStore) GetAllItems(ordering constants.Ordering) ([]Item, error) 
 	}
 
 	return items, nil
+}
+
+func (sls SQLiteStore) MarkRead(ID int) error {
+	stmt, _ := sls.db.Prepare(`update items set readat = ? where id = ?`)
+
+	_, err := stmt.Exec(time.Now(), ID)
+	if err != nil {
+		return fmt.Errorf("[store.go] ToggleRead: %w", err)
+	}
+
+	return nil
+}
+
+func (sls SQLiteStore) MarkUnread(ID int) error {
+	stmt, _ := sls.db.Prepare(`update items set readat = null where id = ?`)
+
+	_, err := stmt.Exec(ID)
+	if err != nil {
+		return fmt.Errorf("[store.go] ToggleRead: %w", err)
+	}
+
+	return nil
 }
 
 func (sls SQLiteStore) ToggleRead(ID int) error {
