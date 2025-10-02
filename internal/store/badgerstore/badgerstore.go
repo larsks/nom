@@ -35,6 +35,11 @@ func NewBadgerStore(basePath string, dbName string) (*BadgerStore, error) {
 		dbName = DefaultDatabaseName
 	}
 
+	// Add .badger extension if missing
+	if filepath.Ext(dbName) == "" {
+		dbName = dbName + ".badger"
+	}
+
 	err := os.MkdirAll(basePath, 0700)
 	if err != nil {
 		return nil, fmt.Errorf("NewSQLiteStore: %w", err)

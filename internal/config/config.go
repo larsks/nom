@@ -13,10 +13,10 @@ import (
 )
 
 var (
-	ErrFeedAlreadyExists  = errors.New("config.AddFeed: feed already exists")
-	DefaultConfigDirName  = "nom"
-	DefaultConfigFileName = "config.yml"
-	DefaultCacheDirName   = "nom"
+	ErrFeedAlreadyExists = errors.New("config.AddFeed: feed already exists")
+	DefaultConfigDirName = "nom"
+	DefaultProfileName   = "nom"
+	DefaultCacheDirName  = "nom"
 )
 
 type Feed struct {
@@ -62,9 +62,11 @@ type FilterConfig struct {
 
 // need to add to Load() below if loading from config file
 type Config struct {
-	ConfigPath     string
-	ShowFavourites bool `yaml:"showfavourites,omitempty"`
-	Version        string
+	ConfigPath     string       `yaml:"-"`
+	Profile        string       `yaml:"-"`
+	Create         bool         `yaml:"-"`
+	ShowFavourites bool         `yaml:"showfavourites,omitempty"`
+	Version        string       `yaml:"-"`
 	ConfigDir      string       `yaml:"-"`
 	CacheDir       string       `yaml:"-"`
 	Pager          string       `yaml:"pager,omitempty"`
@@ -101,15 +103,6 @@ func (c *Config) ToggleShowFavourites() {
 	c.ShowFavourites = !c.ShowFavourites
 }
 
-func updateConfigPathIfDir(configPath string) string {
-	stat, err := os.Stat(configPath)
-	if err == nil && stat.IsDir() {
-		configPath = filepath.Join(configPath, DefaultConfigFileName)
-	}
-
-	return configPath
-}
-
 func New() *Config {
 	userConfigDir, err := os.UserConfigDir()
 	if err != nil {
@@ -121,14 +114,16 @@ func New() *Config {
 		userCacheDir = ""
 	}
 
-	configPath := filepath.Join(userConfigDir, DefaultConfigDirName, DefaultConfigFileName)
+	configDir := filepath.Join(userConfigDir, DefaultConfigDirName)
+	configPath := filepath.Join(configDir, DefaultProfileName+".yml")
 	cacheDir := filepath.Join(userCacheDir, DefaultCacheDirName)
-	configDir, _ := filepath.Split(configPath)
 
 	return &Config{
 		ConfigPath:      configPath,
+		Profile:         DefaultProfileName,
 		ConfigDir:       configDir,
 		CacheDir:        cacheDir,
+		Database:        DefaultProfileName,
 		Pager:           "",
 		Feeds:           []Feed{},
 		PreviewFeeds:    []Feed{},
@@ -144,10 +139,23 @@ func New() *Config {
 	}
 }
 
-func (c *Config) WithConfigPath(configPath string) *Config {
-	if configPath != "" {
-		c.ConfigPath = updateConfigPathIfDir(configPath)
-		c.ConfigDir, _ = filepath.Split(c.ConfigPath)
+func (c *Config) WithConfigPath(configDir string) *Config {
+	if configDir != "" {
+		// Ensure ConfigDir ends with separator for consistency
+		if configDir[len(configDir)-1] != filepath.Separator {
+			configDir = configDir + string(filepath.Separator)
+		}
+		c.ConfigDir = configDir
+		c.ConfigPath = filepath.Join(configDir, c.Profile+".yml")
+	}
+	return c
+}
+
+func (c *Config) WithProfile(profile string) *Config {
+	if profile != "" {
+		c.Profile = profile
+		c.ConfigPath = filepath.Join(c.ConfigDir, profile+".yml")
+		c.Database = profile
 	}
 	return c
 }
@@ -186,6 +194,11 @@ func (c *Config) WithDataDir(dataDir string) *Config {
 	if dataDir != "" {
 		c.CacheDir = dataDir
 	}
+	return c
+}
+
+func (c *Config) WithCreate(create bool) *Config {
+	c.Create = create
 	return c
 }
 
@@ -338,6 +351,11 @@ func (c *Config) setupConfigDir() error {
 	// if configFile exists, do nothing
 	if !errors.Is(err, os.ErrNotExist) {
 		return nil
+	}
+
+	// if config file doesn't exist and Create is false, return error
+	if !c.Create {
+		return fmt.Errorf("config file does not exist for profile '%s'. Use --create to create it", c.Profile)
 	}
 
 	// if not, create directory. noop if directory exists

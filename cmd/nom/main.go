@@ -14,7 +14,10 @@ import (
 type Options struct {
 	Verbose      bool     `short:"v" long:"verbose" description:"Show verbose logging"`
 	Pager        string   `short:"p" long:"pager" description:"Pager to use for longer output. Set to false for no pager"`
-	ConfigPath   string   `short:"c" long:"config-path" description:"Location of config.yml"`
+	ConfigDir    string   `short:"c" long:"config-dir" description:"Directory containing config files" env:"NOM_CONFIG_DIR"`
+	DataDir      string   `short:"d" long:"data-dir" description:"Directory for storing data" env:"NOM_DATA_DIR"`
+	Profile      string   `short:"P" long:"profile" description:"Profile name (determines config file and database name)" env:"NOM_PROFILE"`
+	Create       bool     `long:"create" description:"Create config file and directories if they don't exist"`
 	PreviewFeeds []string `short:"f" long:"feed" description:"Feed(s) URL(s) for preview"`
 }
 
@@ -96,10 +99,18 @@ func (r *Unread) Execute(args []string) error {
 }
 
 func getCmds() (*commands.Commands, error) {
+	profile := options.Profile
+	if profile == "" {
+		profile = "nom"
+	}
+
 	cfg := config.New().
-		WithConfigPath(options.ConfigPath).
+		WithProfile(profile).
+		WithConfigPath(options.ConfigDir).
+		WithDataDir(options.DataDir).
 		WithPager(options.Pager).
 		WithPreviewFeeds(options.PreviewFeeds).
+		WithCreate(options.Create).
 		WithVersion(version)
 
 	if err := cfg.Load(); err != nil {

@@ -29,6 +29,11 @@ func NewSQLiteStore(basePath string, dbName string) (*SQLiteStore, error) {
 		dbName = DefaultDatabaseName
 	}
 
+	// Add .db extension if missing
+	if filepath.Ext(dbName) == "" {
+		dbName = dbName + ".db"
+	}
+
 	err := os.MkdirAll(basePath, 0700)
 	if err != nil {
 		return nil, fmt.Errorf("NewSQLiteStore: %w", err)

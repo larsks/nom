@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"gopkg.in/yaml.v3"
@@ -23,18 +24,20 @@ func TestNewDefault(t *testing.T) {
 	c := New()
 	ucd, _ := os.UserConfigDir()
 
-	test.Equal(t, fmt.Sprintf("%s/nom/config.yml", ucd), c.ConfigPath, "Wrong defaults set")
-	test.Equal(t, fmt.Sprintf("%s/nom/", ucd), c.ConfigDir, "Wrong default ConfigDir set")
+	test.Equal(t, fmt.Sprintf("%s/nom/nom.yml", ucd), c.ConfigPath, "Wrong defaults set")
+	test.Equal(t, fmt.Sprintf("%s/nom", ucd), c.ConfigDir, "Wrong default ConfigDir set")
+	test.Equal(t, "nom", c.Profile, "Wrong default profile")
 }
 
 func TestConfigCustomPath(t *testing.T) {
-	c := New().WithConfigPath("foo/bar.yml")
+	c := New().WithProfile("bar").WithConfigPath("foo")
 
 	test.Equal(t, "foo/bar.yml", c.ConfigPath, "Config path override not set")
+	test.Equal(t, "foo/", c.ConfigDir, "ConfigDir not correctly set")
 }
 
 func TestConfigDir(t *testing.T) {
-	c := New().WithConfigPath("foo/bizzle/bar.yml")
+	c := New().WithConfigPath("foo/bizzle")
 
 	test.Equal(t, "foo/bizzle/", c.ConfigDir, "ConfigDir not correctly parsed")
 }
@@ -42,11 +45,15 @@ func TestConfigDir(t *testing.T) {
 func TestNewOverride(t *testing.T) {
 	c := New().WithConfigPath("foobar")
 
-	test.Equal(t, "foobar", c.ConfigPath, "Override not respected")
+	test.Equal(t, "foobar/nom.yml", c.ConfigPath, "Override not respected")
+	test.Equal(t, "foobar/", c.ConfigDir, "ConfigDir not correctly set")
 }
 
 func TestPreviewFeedsOverrideFeedsFromConfigFile(t *testing.T) {
-	c := New().WithConfigPath(configFixturePath)
+	configDir, configFile := filepath.Split(configFixturePath)
+	// Strip .yml extension from filename to get profile name
+	profile := configFile[:len(configFile)-len(filepath.Ext(configFile))]
+	c := New().WithProfile(profile).WithConfigPath(configDir)
 	c.Load()
 	feeds := c.GetFeeds()
 	test.Equal(t, 3, len(feeds), "Incorrect feeds number")
@@ -54,7 +61,7 @@ func TestPreviewFeedsOverrideFeedsFromConfigFile(t *testing.T) {
 	test.Equal(t, "bird", feeds[1].URL, "Second feed in a config must be bird")
 	test.Equal(t, "dog", feeds[2].URL, "Third feed in a config must be dog")
 
-	c = New().WithConfigPath(configFixturePath).WithPreviewFeeds([]string{"pumpkin", "radish"})
+	c = New().WithProfile(profile).WithConfigPath(configDir).WithPreviewFeeds([]string{"pumpkin", "radish"})
 	c.Load()
 	feeds = c.GetFeeds()
 	test.Equal(t, 2, len(feeds), "Incorrect feeds number")
@@ -63,7 +70,10 @@ func TestPreviewFeedsOverrideFeedsFromConfigFile(t *testing.T) {
 }
 
 func TestConfigLoad(t *testing.T) {
-	c := New().WithConfigPath(configFixturePath)
+	configDir, configFile := filepath.Split(configFixturePath)
+	// Strip .yml extension from filename to get profile name
+	profile := configFile[:len(configFile)-len(filepath.Ext(configFile))]
+	c := New().WithProfile(profile).WithConfigPath(configDir)
 	err := c.Load()
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -85,7 +95,7 @@ func TestConfigLoadFromDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
-	c := New().WithConfigPath(configDir)
+	c := New().WithProfile("config").WithConfigPath(configDir)
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -96,7 +106,10 @@ func TestConfigLoadFromDirectory(t *testing.T) {
 }
 
 func TestConfigLoadPrecidence(t *testing.T) {
-	c := New().WithConfigPath(configFixturePath).WithPager("testpager")
+	configDir, configFile := filepath.Split(configFixturePath)
+	// Strip .yml extension from filename to get profile name
+	profile := configFile[:len(configFile)-len(filepath.Ext(configFile))]
+	c := New().WithProfile(profile).WithConfigPath(configDir).WithPager("testpager")
 
 	err := c.Load()
 	if err != nil {
@@ -109,7 +122,10 @@ func TestConfigLoadPrecidence(t *testing.T) {
 }
 
 func TestConfigAddFeed(t *testing.T) {
-	c := New().WithConfigPath(configFixtureWritePath)
+	configDir, configFile := filepath.Split(configFixtureWritePath)
+	// Strip .yml extension from filename to get profile name
+	profile := configFile[:len(configFile)-len(filepath.Ext(configFile))]
+	c := New().WithProfile(profile).WithConfigPath(configDir)
 
 	err := c.Load()
 	if err != nil {
