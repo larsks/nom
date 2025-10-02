@@ -59,7 +59,7 @@ func updateViewport(msg tea.Msg, m model) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 			}
 
-		case key.Matches(msg, ViewportKeyMap.Read):
+		case key.Matches(msg, ViewportKeyMap.ToggleRead):
 			if m.commands.runtime.Config.AutoRead {
 				return m, nil
 			}

@@ -9,11 +9,11 @@ import (
 // ListKeyMapT shows either (o)verrides or new keybinds
 type ListKeyMapT struct {
 	Open                  key.Binding
-	Read                  key.Binding
+	ToggleRead            key.Binding
 	Favourite             key.Binding
-	ToggleReads           key.Binding
+	ToggleShowReads       key.Binding
 	MarkAllRead           key.Binding
-	ToggleFavourites      key.Binding
+	ToggleShowFavourites  key.Binding
 	Refresh               key.Binding
 	OpenInBrowser         key.Binding
 	Sort                  key.Binding
@@ -33,7 +33,7 @@ type ViewportKeyMapT struct {
 	Escape        key.Binding
 	OpenInBrowser key.Binding
 	Favourite     key.Binding
-	Read          key.Binding
+	ToggleRead    key.Binding
 	GotoStart     key.Binding
 	GotoEnd       key.Binding
 	Next          key.Binding
@@ -51,17 +51,17 @@ var ListKeyMap = ListKeyMapT{
 	),
 	Favourite: key.NewBinding(
 		key.WithKeys("f"),
-		key.WithHelp("f", "favourite"),
+		key.WithHelp("f", "toggle favourite"),
 	),
-	ToggleFavourites: key.NewBinding(
+	ToggleShowFavourites: key.NewBinding(
 		key.WithKeys("F"),
 		key.WithHelp("F", "toggle show favourite"),
 	),
-	Read: key.NewBinding(
+	ToggleRead: key.NewBinding(
 		key.WithKeys("m"),
-		key.WithHelp("m", "mark read"),
+		key.WithHelp("m", "toggle read"),
 	),
-	ToggleReads: key.NewBinding(
+	ToggleShowReads: key.NewBinding(
 		key.WithKeys("M"),
 		key.WithHelp("M", "toggle show read"),
 	),
@@ -146,9 +146,9 @@ var ViewportKeyMap = ViewportKeyMapT{
 		key.WithKeys("f"),
 		key.WithHelp("f", "favourite"),
 	),
-	Read: key.NewBinding(
+	ToggleRead: key.NewBinding(
 		key.WithKeys("m"),
-		key.WithHelp("m", "mark read"),
+		key.WithHelp("m", "toggle read"),
 	),
 	GotoStart: key.NewBinding(
 		key.WithKeys("g", "home"),
@@ -174,7 +174,7 @@ func (k ViewportKeyMapT) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{v.Up, v.Down, v.HalfPageUp, v.HalfPageDown},
 		{k.GotoStart, k.GotoEnd, v.PageUp, v.PageDown},
-		{k.Next, k.Prev, k.OpenInBrowser, k.Favourite, k.Read},
+		{k.Next, k.Prev, k.OpenInBrowser, k.Favourite, k.ToggleRead},
 		{k.Escape, k.Quit, k.CloseFullHelp},
 	}
 }
@@ -190,8 +190,8 @@ func (k ViewportKeyMapT) ShortHelp() []key.Binding {
 // This shows *additional* (or overridden) keybinds alongside built-ins, which *must* take []key.Binding unfortunately.
 func (k ListKeyMapT) FullHelp() []key.Binding {
 	return []key.Binding{
-		k.Open, k.Read, k.Favourite, k.Refresh,
-		k.OpenInBrowser, k.Sort, k.ToggleFavourites, k.ToggleReads,
+		k.Open, k.ToggleRead, k.Favourite, k.Refresh,
+		k.OpenInBrowser, k.Sort, k.ToggleShowFavourites, k.ToggleShowReads,
 		k.MarkAllRead, k.EditConfig,
 	}
 }

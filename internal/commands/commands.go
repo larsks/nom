@@ -317,7 +317,7 @@ func (c Commands) GetGlamourisedArticle(ID int) (string, error) {
 	}
 
 	if c.runtime.Config.AutoRead && !article.Read() {
-		err = c.store.ToggleRead(article.ID)
+		err = c.store.MarkRead(article.ID)
 		if err != nil {
 			return "", fmt.Errorf("[commands.go] GetGlamourisedArticle: %w", err)
 		}
