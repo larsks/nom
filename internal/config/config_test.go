@@ -20,7 +20,7 @@ func cleanup() {
 }
 
 func TestNewDefault(t *testing.T) {
-	c, _ := New("", "", []string{}, "")
+	c := New()
 	ucd, _ := os.UserConfigDir()
 
 	test.Equal(t, fmt.Sprintf("%s/nom/config.yml", ucd), c.ConfigPath, "Wrong defaults set")
@@ -28,25 +28,25 @@ func TestNewDefault(t *testing.T) {
 }
 
 func TestConfigCustomPath(t *testing.T) {
-	c, _ := New("foo/bar.yml", "", []string{}, "")
+	c := New().WithConfigPath("foo/bar.yml")
 
 	test.Equal(t, "foo/bar.yml", c.ConfigPath, "Config path override not set")
 }
 
 func TestConfigDir(t *testing.T) {
-	c, _ := New("foo/bizzle/bar.yml", "", []string{}, "")
+	c := New().WithConfigPath("foo/bizzle/bar.yml")
 
 	test.Equal(t, "foo/bizzle/", c.ConfigDir, "ConfigDir not correctly parsed")
 }
 
 func TestNewOverride(t *testing.T) {
-	c, _ := New("foobar", "", []string{}, "")
+	c := New().WithConfigPath("foobar")
 
 	test.Equal(t, "foobar", c.ConfigPath, "Override not respected")
 }
 
 func TestPreviewFeedsOverrideFeedsFromConfigFile(t *testing.T) {
-	c, _ := New(configFixturePath, "", []string{}, "")
+	c := New().WithConfigPath(configFixturePath)
 	c.Load()
 	feeds := c.GetFeeds()
 	test.Equal(t, 3, len(feeds), "Incorrect feeds number")
@@ -54,7 +54,7 @@ func TestPreviewFeedsOverrideFeedsFromConfigFile(t *testing.T) {
 	test.Equal(t, "bird", feeds[1].URL, "Second feed in a config must be bird")
 	test.Equal(t, "dog", feeds[2].URL, "Third feed in a config must be dog")
 
-	c, _ = New(configFixturePath, "", []string{"pumpkin", "radish"}, "")
+	c = New().WithConfigPath(configFixturePath).WithPreviewFeeds([]string{"pumpkin", "radish"})
 	c.Load()
 	feeds = c.GetFeeds()
 	test.Equal(t, 2, len(feeds), "Incorrect feeds number")
@@ -63,7 +63,7 @@ func TestPreviewFeedsOverrideFeedsFromConfigFile(t *testing.T) {
 }
 
 func TestConfigLoad(t *testing.T) {
-	c, _ := New(configFixturePath, "", []string{}, "")
+	c := New().WithConfigPath(configFixturePath)
 	err := c.Load()
 	if err != nil {
 		t.Fatalf("%s", err)
@@ -85,7 +85,7 @@ func TestConfigLoadFromDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
-	c, _ := New(configDir, "", []string{}, "")
+	c := New().WithConfigPath(configDir)
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -96,7 +96,7 @@ func TestConfigLoadFromDirectory(t *testing.T) {
 }
 
 func TestConfigLoadPrecidence(t *testing.T) {
-	c, _ := New(configFixturePath, "testpager", []string{}, "")
+	c := New().WithConfigPath(configFixturePath).WithPager("testpager")
 
 	err := c.Load()
 	if err != nil {
@@ -109,7 +109,7 @@ func TestConfigLoadPrecidence(t *testing.T) {
 }
 
 func TestConfigAddFeed(t *testing.T) {
-	c, _ := New(configFixtureWritePath, "", []string{}, "")
+	c := New().WithConfigPath(configFixtureWritePath)
 
 	err := c.Load()
 	if err != nil {
@@ -140,7 +140,7 @@ func TestConfigSetupDir(t *testing.T) {
 		t.Fatalf("Failed to create %s", configDir)
 	}
 
-	c, _ := New(configPath, "", []string{}, "")
+	c := New().WithConfigPath(configPath)
 	c.Load()
 
 	_, err = os.Stat(configPath)
