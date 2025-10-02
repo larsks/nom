@@ -115,10 +115,13 @@ func (r *Import) Execute(args []string) error {
 }
 
 func getCmds() (*commands.Commands, error) {
-	cfg, err := config.New(options.ConfigPath, options.Pager, options.PreviewFeeds, version)
-	if err != nil {
-		return nil, err
-	}
+	cfg := config.New().
+		WithConfigPath(options.ConfigPath).
+		WithPager(options.Pager).
+		WithPreviewFeeds(options.PreviewFeeds).
+		WithVersion(version)
+
+	var err error
 
 	if err = cfg.Load(); err != nil {
 		return nil, err

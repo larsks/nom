@@ -108,32 +108,22 @@ func updateConfigPathIfDir(configPath string) string {
 	return configPath
 }
 
-func New(configPath string, pager string, previewFeeds []string, version string) (*Config, error) {
-	if configPath == "" {
-		userConfigDir, err := os.UserConfigDir()
-		if err != nil {
-			return nil, fmt.Errorf("config.New: %w", err)
-		}
-
-		configPath = filepath.Join(userConfigDir, DefaultConfigDirName, DefaultConfigFileName)
-	} else {
-		configPath = updateConfigPathIfDir(configPath)
+func New() *Config {
+	userConfigDir, err := os.UserConfigDir()
+	if err != nil {
+		userConfigDir = ""
 	}
 
+	configPath := filepath.Join(userConfigDir, DefaultConfigDirName, DefaultConfigFileName)
 	configDir, _ := filepath.Split(configPath)
-
-	var f []Feed
-	for _, feedURL := range previewFeeds {
-		f = append(f, Feed{URL: feedURL})
-	}
 
 	return &Config{
 		ConfigPath:      configPath,
 		ConfigDir:       configDir,
-		Pager:           pager,
+		Pager:           "",
 		Database:        DefaultDatabaseName,
 		Feeds:           []Feed{},
-		PreviewFeeds:    f,
+		PreviewFeeds:    []Feed{},
 		Theme:           DefaultTheme,
 		RefreshInterval: 0,
 		Ordering:        constants.DefaultOrdering,
@@ -143,7 +133,45 @@ func New(configPath string, pager string, previewFeeds []string, version string)
 		HTTPOptions: &HTTPOptions{
 			MinTLSVersion: tls.VersionName(tls.VersionTLS12),
 		},
-	}, nil
+	}
+}
+
+func (c *Config) WithConfigPath(configPath string) *Config {
+	if configPath != "" {
+		c.ConfigPath = updateConfigPathIfDir(configPath)
+		c.ConfigDir, _ = filepath.Split(c.ConfigPath)
+	}
+	return c
+}
+
+func (c *Config) WithPager(pager string) *Config {
+	if pager != "" {
+		c.Pager = pager
+	}
+	return c
+}
+
+func (c *Config) WithPreviewFeeds(previewFeeds []string) *Config {
+	if len(previewFeeds) > 0 {
+		var f []Feed
+		for _, feedURL := range previewFeeds {
+			f = append(f, Feed{URL: feedURL})
+		}
+		c.PreviewFeeds = f
+	}
+	return c
+}
+
+func (c *Config) WithVersion(version string) *Config {
+	c.Version = version
+	return c
+}
+
+func (c *Config) WithDatabase(database string) *Config {
+	if database != "" {
+		c.Database = database
+	}
+	return c
 }
 
 func (c *Config) IsPreviewMode() bool {
