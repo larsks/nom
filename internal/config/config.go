@@ -17,6 +17,7 @@ var (
 	DefaultConfigDirName = "nom"
 	DefaultProfileName   = "nom"
 	DefaultCacheDirName  = "nom"
+	DefaultListFormat    = `{{ printf "%3d" .Index }}. {{ if .Item.FeedName }}{{ .Item.FeedName }}: {{ end }}{{ .Item.Title }}`
 )
 
 type Feed struct {
@@ -84,6 +85,7 @@ type Config struct {
 	Theme           Theme        `yaml:"theme,omitempty"`
 	HTTPOptions     *HTTPOptions `yaml:"http,omitempty"`
 	RefreshInterval int          `yaml:"refreshinterval,omitempty"`
+	ListFormat      string       `yaml:"listformat"`
 }
 
 var DefaultTheme = Theme{
@@ -129,6 +131,7 @@ func New() *Config {
 		PreviewFeeds:    []Feed{},
 		Theme:           DefaultTheme,
 		RefreshInterval: 0,
+		ListFormat:      DefaultListFormat,
 		Ordering:        constants.DefaultOrdering,
 		Filtering: FilterConfig{
 			DefaultIncludeFeedName: false,
@@ -235,6 +238,7 @@ func (c *Config) Load() error {
 	c.ShowFavourites = fileConfig.ShowFavourites
 	c.Filtering = fileConfig.Filtering
 	c.RefreshInterval = fileConfig.RefreshInterval
+	c.ListFormat = fileConfig.ListFormat
 
 	if fileConfig.HTTPOptions != nil {
 		if _, err := TLSVersion(fileConfig.HTTPOptions.MinTLSVersion); err != nil {
