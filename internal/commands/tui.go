@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"text/template"
+	"time"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/list"
@@ -29,12 +31,13 @@ var (
 )
 
 type TUIItem struct {
-	Title     string
-	FeedName  string
-	URL       string
-	ID        int
-	Read      bool
-	Favourite bool
+	Title       string
+	FeedName    string
+	URL         string
+	ID          int
+	Read        bool
+	Favourite   bool
+	PublishedAt time.Time
 }
 
 func (i TUIItem) FilterValue() string { return fmt.Sprintf("%s||%s", i.Title, i.FeedName) }
@@ -164,12 +167,13 @@ func (m model) OpenInBrowser(url string) error {
 
 func ItemToTUIItem(i store.Item) TUIItem {
 	return TUIItem{
-		ID:        i.ID,
-		FeedName:  i.FeedName,
-		Title:     i.Title,
-		URL:       i.Link,
-		Read:      i.Read(),
-		Favourite: i.Favourite,
+		ID:          i.ID,
+		FeedName:    i.FeedName,
+		Title:       i.Title,
+		URL:         i.Link,
+		Read:        i.Read(),
+		Favourite:   i.Favourite,
+		PublishedAt: i.PublishedAt,
 	}
 }
 
@@ -232,7 +236,18 @@ func Render(items []list.Item, cmds *Commands, errors []string, runtime *config.
 
 	appStyle.Height(height)
 
-	l := list.New(items, itemDelegate{theme: runtime.Config.Theme}, defaultWidth, height)
+	// Parse list format template
+	var listTemplate *template.Template
+	if runtime.Config.ListFormat != "" {
+		var err error
+		listTemplate, err = template.New("listformat").Parse(runtime.Config.ListFormat)
+		if err != nil {
+			// Log error but continue with nil template (will use fallback)
+			log.Printf("Error parsing list format template: %v", err)
+		}
+	}
+
+	l := list.New(items, itemDelegate{theme: runtime.Config.Theme, listTemplate: listTemplate}, defaultWidth, height)
 	l.SetShowStatusBar(false)
 	l.Title = defaultTitle
 	l.Styles.Title = titleStyle.

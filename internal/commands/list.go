@@ -1,11 +1,13 @@
 package commands
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"strings"
+	"text/template"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
@@ -32,7 +34,8 @@ var (
 )
 
 type itemDelegate struct {
-	theme config.Theme
+	theme        config.Theme
+	listTemplate *template.Template
 }
 
 func (d itemDelegate) Height() int                               { return 1 }
@@ -45,10 +48,28 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 	}
 
 	var str string
-	if i.FeedName == "" {
-		str = fmt.Sprintf("%3d. %s", index+1, i.Title)
+
+	// Use template if available, otherwise fallback to simple display
+	if d.listTemplate != nil {
+		var buf bytes.Buffer
+		data := struct {
+			Index int
+			Item  TUIItem
+		}{
+			Index: index + 1,
+			Item:  i,
+		}
+
+		err := d.listTemplate.Execute(&buf, data)
+		if err != nil {
+			// Fallback to simple display on error
+			str = fmt.Sprintf("%d. %s", index+1, i.Title)
+		} else {
+			str = buf.String()
+		}
 	} else {
-		str = fmt.Sprintf("%3d. %s: %s", index+1, i.FeedName, i.Title)
+		// Fallback if no template
+		str = fmt.Sprintf("%d. %s", index+1, i.Title)
 	}
 
 	fn := itemStyle.Render
