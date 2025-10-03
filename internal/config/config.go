@@ -19,6 +19,7 @@ var (
 	DefaultConfigDirName  = "nom"
 	DefaultConfigFileName = "config.yml"
 	DefaultDatabaseName   = "nom.db"
+	DefaultListFormat     = `{{ printf "%3d" .Index }}. {{ if .Item.FeedName }}{{ .Item.FeedName }}: {{ end }}{{ .Item.Title }}`
 )
 
 type Feed struct {
@@ -79,6 +80,7 @@ type Config struct {
 	Theme           Theme              `yaml:"theme,omitempty"`
 	HTTPOptions     *HTTPOptions       `yaml:"http,omitempty"`
 	RefreshInterval int                `yaml:"refreshinterval,omitempty"`
+	ListFormat      string             `yaml:"listformat,omitempty"`
 	Include         []string           `yaml:"include,omitempty"`
 }
 
@@ -144,6 +146,7 @@ func New() *Runtime {
 			HTTPOptions: &HTTPOptions{
 				MinTLSVersion: tls.VersionName(tls.VersionTLS12),
 			},
+			ListFormat: DefaultListFormat,
 		},
 	}
 }
