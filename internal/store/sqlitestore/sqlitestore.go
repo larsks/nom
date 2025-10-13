@@ -146,7 +146,7 @@ func (sls *SQLiteStore) EndBatch() error {
 	return nil
 }
 
-func (sls *SQLiteStore) UpsertItem(item store.Item) error {
+func (sls *SQLiteStore) UpsertItem(item *store.Item) error {
 	if sls.batch != nil {
 		return sls.upsertItem(sls.batch, item)
 	}
@@ -158,7 +158,7 @@ type statementPreparer interface {
 	Prepare(query string) (*sql.Stmt, error)
 }
 
-func (sls *SQLiteStore) upsertItem(db statementPreparer, item store.Item) error {
+func (sls *SQLiteStore) upsertItem(db statementPreparer, item *store.Item) error {
 	stmt, err := db.Prepare(`select count(id), id from items where feedurl = ? and guid = ?;`)
 	if err != nil {
 		return fmt.Errorf("sqlite.go: could not prepare query: %w", err)

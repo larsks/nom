@@ -25,7 +25,7 @@ func (i Item) Read() bool {
 }
 
 type Store interface {
-	UpsertItem(item Item) error
+	UpsertItem(item *Item) error
 	BeginBatch() error
 	EndBatch() error
 	GetAllItems(ordering string) ([]Item, error)

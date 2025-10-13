@@ -16,10 +16,16 @@ func (c Commands) CleanFeeds() error {
 	}
 
 	var urlsToRemove []string
+	var feeds []config.Feed
+	if c.config.IsPreviewMode() {
+		feeds = c.config.PreviewFeeds
+	} else {
+		feeds = c.config.Feeds
+	}
 
 	for _, u := range urls {
 		inFeeds := false
-		for _, f := range c.config.Feeds {
+		for _, f := range feeds {
 			if f.URL == u {
 				inFeeds = true
 			}

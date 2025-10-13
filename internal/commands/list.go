@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
 	"strings"
@@ -300,6 +301,7 @@ func updateList(msg tea.Msg, m model) (tea.Model, tea.Cmd) {
 				content, err := m.commands.GetGlamourisedArticle(*m.selectedArticle)
 				if err != nil {
 					// LKS: there should be an error message here
+					log.Fatalf("FAILED TO FETCH ARTICLE: %v", err)
 					return m, tea.Quit
 				}
 

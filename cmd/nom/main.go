@@ -8,7 +8,9 @@ import (
 
 	"github.com/guyfedwards/nom/v2/internal/commands"
 	"github.com/guyfedwards/nom/v2/internal/config"
-	store "github.com/guyfedwards/nom/v2/internal/store/sqlitestore"
+	"github.com/guyfedwards/nom/v2/internal/store"
+	"github.com/guyfedwards/nom/v2/internal/store/memorystore"
+	"github.com/guyfedwards/nom/v2/internal/store/sqlitestore"
 )
 
 type Options struct {
@@ -124,7 +126,12 @@ func getCmds() (*commands.Commands, error) {
 		return nil, err
 	}
 
-	s, err := store.NewSQLiteStore(cfg.ConfigDir, cfg.Database)
+	var s store.Store
+	if cfg.IsPreviewMode() {
+		s = memorystore.NewMemoryStore()
+	} else {
+		s, err = sqlitestore.NewSQLiteStore(cfg.ConfigDir, cfg.Database)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("main.go: %w", err)
 	}
