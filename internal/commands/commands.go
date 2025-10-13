@@ -244,8 +244,14 @@ func (c Commands) fetchAllFeeds() ([]store.Item, []ErrorItem, error) {
 				FeedURL:     result.url,
 				FeedName:    r.FeedName,
 				Link:        r.Link,
+				GUID:        r.GUID,
 				PublishedAt: r.PubDate,
 				Title:       r.Title,
+			}
+
+			// ensure non-empty GUID by defaulting to the link
+			if i.GUID == "" {
+				i.GUID = i.Link
 			}
 
 			// only store if non-preview feed
