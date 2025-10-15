@@ -22,6 +22,8 @@ var (
 	ErrIncludeLoop        = errors.New("config.Load: include loop detected")
 	DefaultConfigDirName  = "nom"
 	DefaultConfigFileName = "default.yml"
+	LegacyConfigFileName  = "config.yml"
+	LegacyDatabaseName    = "nom.db"
 	DefaultListFormat     = `{{ printf "%3d" .Index }}. {{ if .Item.FeedName }}{{ .Item.FeedName }}: {{ end }}{{ .Item.Title }}`
 )
 
@@ -290,7 +292,15 @@ func (r *Runtime) loadConfigWithIncludes(configPath string, visited map[string]b
 func (r *Runtime) Load() (*Runtime, error) {
 	err := r.setupConfigDir()
 	if err != nil {
-		return nil, fmt.Errorf("config Load: %w", err)
+		// Check for legacy config file fallback if using default config path
+		// This ensures backwards compatibility when upgrading from older versions
+		if filepath.Base(r.ConfigPath) == DefaultConfigFileName {
+			r.ConfigPath = filepath.Join(r.ConfigDir, LegacyConfigFileName)
+			err = r.setupConfigDir()
+		}
+		if err != nil {
+			return nil, fmt.Errorf("config Load: %w", err)
+		}
 	}
 
 	// Load config with include support
@@ -318,7 +328,12 @@ func (r *Runtime) Load() (*Runtime, error) {
 
 	// Compute database name from config path if not explicitly set
 	if existingDatabase == "" && r.Config.Database == "" {
-		r.Config.Database = defaultDatabaseName(r.ConfigPath)
+		// Use legacy database name for legacy config file
+		if filepath.Base(r.ConfigPath) == LegacyConfigFileName {
+			r.Config.Database = LegacyDatabaseName
+		} else {
+			r.Config.Database = defaultDatabaseName(r.ConfigPath)
+		}
 	} else if existingDatabase != "" {
 		// Restore database if it was set via WithDatabase() (higher precedence than file)
 		r.Config.Database = existingDatabase

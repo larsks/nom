@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"gopkg.in/yaml.v3"
@@ -362,6 +363,159 @@ func TestConfigPathDeterminesDatabaseName(t *testing.T) {
 		t.Fatalf("Failed to load config: %s", err)
 	}
 	test.Equal(t, "custom.db", c2.Config.Database, "WithDatabase should override computed default")
+}
+
+func TestLegacyConfigFileBackwardsCompatibility(t *testing.T) {
+	// Create a temporary directory structure
+	tmpDir, err := os.MkdirTemp("", "nom-legacy-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %s", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	nomDir := filepath.Join(tmpDir, "nom")
+	err = os.MkdirAll(nomDir, 0755)
+	if err != nil {
+		t.Fatalf("Failed to create nom dir: %s", err)
+	}
+
+	// Create only the legacy config.yml file
+	legacyConfigPath := filepath.Join(nomDir, "config.yml")
+	legacyContent := []byte("feeds:\n  - url: legacy-feed\n")
+	err = os.WriteFile(legacyConfigPath, legacyContent, 0644)
+	if err != nil {
+		t.Fatalf("Failed to write legacy config: %s", err)
+	}
+
+	// Create a Runtime with default config path pointing to default.yml (which doesn't exist)
+	defaultConfigPath := filepath.Join(nomDir, "default.yml")
+	c, err := New().WithConfigPath(defaultConfigPath).Load()
+	if err != nil {
+		t.Fatalf("Failed to load config with legacy fallback: %s", err)
+	}
+
+	// Verify it fell back to config.yml
+	test.Equal(t, legacyConfigPath, c.ConfigPath, "Should have fallen back to legacy config.yml")
+
+	// Verify it loaded the legacy config content
+	test.Equal(t, 1, len(c.Config.Feeds), "Should have loaded one feed")
+	test.Equal(t, "legacy-feed", c.Config.Feeds[0].URL, "Should have loaded legacy feed")
+}
+
+func TestLegacyDatabaseName(t *testing.T) {
+	// Create a temporary directory structure
+	tmpDir, err := os.MkdirTemp("", "nom-legacy-db-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %s", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	nomDir := filepath.Join(tmpDir, "nom")
+	err = os.MkdirAll(nomDir, 0755)
+	if err != nil {
+		t.Fatalf("Failed to create nom dir: %s", err)
+	}
+
+	// Create only the legacy config.yml file
+	legacyConfigPath := filepath.Join(nomDir, "config.yml")
+	legacyContent := []byte("feeds:\n  - url: test-feed\n")
+	err = os.WriteFile(legacyConfigPath, legacyContent, 0644)
+	if err != nil {
+		t.Fatalf("Failed to write legacy config: %s", err)
+	}
+
+	// Create a Runtime with default config path
+	defaultConfigPath := filepath.Join(nomDir, "default.yml")
+	c, err := New().WithConfigPath(defaultConfigPath).Load()
+	if err != nil {
+		t.Fatalf("Failed to load config: %s", err)
+	}
+
+	// Verify it uses nom.db as the database name (not config.db)
+	test.Equal(t, "nom.db", c.Config.Database, "Should use legacy database name nom.db")
+}
+
+func TestNewDefaultConfigTakesPrecedence(t *testing.T) {
+	// Create a temporary directory structure
+	tmpDir, err := os.MkdirTemp("", "nom-precedence-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %s", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	nomDir := filepath.Join(tmpDir, "nom")
+	err = os.MkdirAll(nomDir, 0755)
+	if err != nil {
+		t.Fatalf("Failed to create nom dir: %s", err)
+	}
+
+	// Create both default.yml and config.yml
+	defaultConfigPath := filepath.Join(nomDir, "default.yml")
+	defaultContent := []byte("feeds:\n  - url: new-default-feed\n")
+	err = os.WriteFile(defaultConfigPath, defaultContent, 0644)
+	if err != nil {
+		t.Fatalf("Failed to write default config: %s", err)
+	}
+
+	legacyConfigPath := filepath.Join(nomDir, "config.yml")
+	legacyContent := []byte("feeds:\n  - url: legacy-feed\n")
+	err = os.WriteFile(legacyConfigPath, legacyContent, 0644)
+	if err != nil {
+		t.Fatalf("Failed to write legacy config: %s", err)
+	}
+
+	// Load with default path
+	c, err := New().WithConfigPath(defaultConfigPath).Load()
+	if err != nil {
+		t.Fatalf("Failed to load config: %s", err)
+	}
+
+	// Verify it uses default.yml, not config.yml
+	test.Equal(t, defaultConfigPath, c.ConfigPath, "Should use default.yml when it exists")
+	test.Equal(t, "new-default-feed", c.Config.Feeds[0].URL, "Should load from default.yml")
+	test.Equal(t, "default.db", c.Config.Database, "Should use default.db, not nom.db")
+}
+
+func TestExplicitConfigPathIgnoresLegacy(t *testing.T) {
+	// Create a temporary directory structure
+	tmpDir, err := os.MkdirTemp("", "nom-explicit-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %s", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	nomDir := filepath.Join(tmpDir, "nom")
+	err = os.MkdirAll(nomDir, 0755)
+	if err != nil {
+		t.Fatalf("Failed to create nom dir: %s", err)
+	}
+
+	// Create a custom config file
+	customConfigPath := filepath.Join(nomDir, "custom.yml")
+	customContent := []byte("feeds:\n  - url: custom-feed\n")
+	err = os.WriteFile(customConfigPath, customContent, 0644)
+	if err != nil {
+		t.Fatalf("Failed to write custom config: %s", err)
+	}
+
+	// Also create a legacy config.yml
+	legacyConfigPath := filepath.Join(nomDir, "config.yml")
+	legacyContent := []byte("feeds:\n  - url: legacy-feed\n")
+	err = os.WriteFile(legacyConfigPath, legacyContent, 0644)
+	if err != nil {
+		t.Fatalf("Failed to write legacy config: %s", err)
+	}
+
+	// Load with explicit custom path
+	c, err := New().WithConfigPath(customConfigPath).Load()
+	if err != nil {
+		t.Fatalf("Failed to load config: %s", err)
+	}
+
+	// Verify it uses the explicit custom path, not the legacy fallback
+	test.Equal(t, customConfigPath, c.ConfigPath, "Should use explicitly set config path")
+	test.Equal(t, "custom-feed", c.Config.Feeds[0].URL, "Should load from custom config")
+	test.Equal(t, "custom.db", c.Config.Database, "Should derive database name from custom config")
 }
 
 // Helper function to check if a string contains a substring
