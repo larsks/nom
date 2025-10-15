@@ -1,0 +1,4 @@
+feeds:
+  - url: override-feed
+ordering: desc
+pager: less

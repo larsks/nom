@@ -1,0 +1,4 @@
+include:
+  - include_loop_a.yml
+feeds:
+  - url: loop-b
