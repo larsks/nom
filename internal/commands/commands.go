@@ -209,7 +209,7 @@ func (c Commands) fetchAllFeeds() ([]store.Item, []ErrorItem, error) {
 	feeds := c.runtime.GetFeeds()
 
 	if len(feeds) <= 0 {
-		return items, errorItems, fmt.Errorf("no feeds found, add to nom/config.yml")
+		return items, errorItems, fmt.Errorf("no feeds found, add to %s", c.runtime.ConfigPath)
 	}
 
 	ch := make(chan FetchResultError)
