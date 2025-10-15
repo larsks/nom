@@ -157,14 +157,15 @@ func main() {
 	parser.AddCommand("import", "Import feeds", "Import feeds from an OMPL file", &Import{})
 
 	// parse the command line arguments
-	_, err := parser.Parse()
+	args, err := parser.Parse()
 	// check for help flag
-	if err != nil {
-		if flagErr, ok := err.(*flags.Error); ok && flagErr.Type != flags.ErrHelp {
-			parser.WriteHelp(os.Stdout)
+	if err != nil || len(args) > 0 {
+		if flagErr, ok := err.(*flags.Error); ok && flagErr.Type == flags.ErrHelp {
+			os.Exit(0)
 		}
 
-		os.Exit(0)
+		parser.WriteHelp(os.Stdout)
+		os.Exit(2)
 	}
 
 	// no subcommand or help flag, run the TUI
