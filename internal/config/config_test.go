@@ -69,11 +69,11 @@ func TestConfigLoad(t *testing.T) {
 		t.Fatalf("%s", err)
 	}
 
-	if len(c.Feeds) != 3 || c.Feeds[0].URL != "cattle" {
+	if len(c.Config.Feeds) != 3 || c.Config.Feeds[0].URL != "cattle" {
 		t.Fatalf("Parsing failed")
 	}
 
-	if len(c.Ordering) == 0 || c.Ordering != "desc" {
+	if len(c.Config.Ordering) == 0 || c.Config.Ordering != "desc" {
 		t.Fatalf("Parsing failed")
 	}
 }
@@ -103,7 +103,7 @@ func TestConfigLoadPrecidence(t *testing.T) {
 		t.Fatalf("%s", err)
 	}
 
-	if c.Pager != "testpager" {
+	if c.Config.Pager != "testpager" {
 		t.Fatalf("testpager overridden")
 	}
 }

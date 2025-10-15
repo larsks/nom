@@ -60,26 +60,30 @@ type FilterConfig struct {
 	DefaultIncludeFeedName bool `yaml:"defaultIncludeFeedName"`
 }
 
-// need to add to Load() below if loading from config file
+// Config contains YAML-serializable configuration settings
 type Config struct {
-	ConfigPath     string
-	ShowFavourites bool `yaml:"showfavourites,omitempty"`
-	Version        string
-	ConfigDir      string             `yaml:"-"`
-	Pager          string             `yaml:"pager,omitempty"`
-	Feeds          []Feed             `yaml:"feeds"`
-	Database       string             `yaml:"database"`
-	Ordering       constants.Ordering `yaml:"ordering"`
-	Filtering      FilterConfig       `yaml:"filtering"`
-	// Preview feeds are distinguished from Feeds because we don't want to inadvertenly write those into the config file.
-	PreviewFeeds    []Feed       `yaml:"previewfeeds,omitempty"`
-	Backends        *Backends    `yaml:"backends,omitempty"`
-	ShowRead        bool         `yaml:"showread,omitempty"`
-	AutoRead        bool         `yaml:"autoread,omitempty"`
-	Openers         []Opener     `yaml:"openers,omitempty"`
-	Theme           Theme        `yaml:"theme,omitempty"`
-	HTTPOptions     *HTTPOptions `yaml:"http,omitempty"`
-	RefreshInterval int          `yaml:"refreshinterval,omitempty"`
+	ShowFavourites  bool               `yaml:"showfavourites,omitempty"`
+	Pager           string             `yaml:"pager,omitempty"`
+	Feeds           []Feed             `yaml:"feeds"`
+	Database        string             `yaml:"database"`
+	Ordering        constants.Ordering `yaml:"ordering"`
+	Filtering       FilterConfig       `yaml:"filtering"`
+	Backends        *Backends          `yaml:"backends,omitempty"`
+	ShowRead        bool               `yaml:"showread,omitempty"`
+	AutoRead        bool               `yaml:"autoread,omitempty"`
+	Openers         []Opener           `yaml:"openers,omitempty"`
+	Theme           Theme              `yaml:"theme,omitempty"`
+	HTTPOptions     *HTTPOptions       `yaml:"http,omitempty"`
+	RefreshInterval int                `yaml:"refreshinterval,omitempty"`
+}
+
+// Runtime contains non-serializable runtime settings and the YAML config
+type Runtime struct {
+	ConfigPath   string
+	ConfigDir    string
+	PreviewFeeds []Feed
+	Version      string
+	Config       *Config
 }
 
 var DefaultTheme = Theme{
@@ -91,12 +95,12 @@ var DefaultTheme = Theme{
 	ReadIcon:          "\u2713",
 }
 
-func (c *Config) ToggleShowRead() {
-	c.ShowRead = !c.ShowRead
+func (r *Runtime) ToggleShowRead() {
+	r.Config.ShowRead = !r.Config.ShowRead
 }
 
-func (c *Config) ToggleShowFavourites() {
-	c.ShowFavourites = !c.ShowFavourites
+func (r *Runtime) ToggleShowFavourites() {
+	r.Config.ShowFavourites = !r.Config.ShowFavourites
 }
 
 func updateConfigPathIfDir(configPath string) string {
@@ -108,7 +112,7 @@ func updateConfigPathIfDir(configPath string) string {
 	return configPath
 }
 
-func New() *Config {
+func New() *Runtime {
 	userConfigDir, err := os.UserConfigDir()
 	if err != nil {
 		userConfigDir = ""
@@ -117,74 +121,77 @@ func New() *Config {
 	configPath := filepath.Join(userConfigDir, DefaultConfigDirName, DefaultConfigFileName)
 	configDir, _ := filepath.Split(configPath)
 
-	return &Config{
-		ConfigPath:      configPath,
-		ConfigDir:       configDir,
-		Pager:           "",
-		Database:        DefaultDatabaseName,
-		Feeds:           []Feed{},
-		PreviewFeeds:    []Feed{},
-		Theme:           DefaultTheme,
-		RefreshInterval: 0,
-		Ordering:        constants.DefaultOrdering,
-		Filtering: FilterConfig{
-			DefaultIncludeFeedName: false,
-		},
-		HTTPOptions: &HTTPOptions{
-			MinTLSVersion: tls.VersionName(tls.VersionTLS12),
+	return &Runtime{
+		ConfigPath:   configPath,
+		ConfigDir:    configDir,
+		PreviewFeeds: []Feed{},
+		Version:      "",
+		Config: &Config{
+			Pager:           "",
+			Database:        DefaultDatabaseName,
+			Feeds:           []Feed{},
+			Theme:           DefaultTheme,
+			RefreshInterval: 0,
+			Ordering:        constants.DefaultOrdering,
+			Filtering: FilterConfig{
+				DefaultIncludeFeedName: false,
+			},
+			HTTPOptions: &HTTPOptions{
+				MinTLSVersion: tls.VersionName(tls.VersionTLS12),
+			},
 		},
 	}
 }
 
-func (c *Config) WithConfigPath(configPath string) *Config {
+func (r *Runtime) WithConfigPath(configPath string) *Runtime {
 	if configPath != "" {
-		c.ConfigPath = updateConfigPathIfDir(configPath)
-		c.ConfigDir, _ = filepath.Split(c.ConfigPath)
+		r.ConfigPath = updateConfigPathIfDir(configPath)
+		r.ConfigDir, _ = filepath.Split(r.ConfigPath)
 	}
-	return c
+	return r
 }
 
-func (c *Config) WithPager(pager string) *Config {
+func (r *Runtime) WithPager(pager string) *Runtime {
 	if pager != "" {
-		c.Pager = pager
+		r.Config.Pager = pager
 	}
-	return c
+	return r
 }
 
-func (c *Config) WithPreviewFeeds(previewFeeds []string) *Config {
+func (r *Runtime) WithPreviewFeeds(previewFeeds []string) *Runtime {
 	if len(previewFeeds) > 0 {
 		var f []Feed
 		for _, feedURL := range previewFeeds {
 			f = append(f, Feed{URL: feedURL})
 		}
-		c.PreviewFeeds = f
+		r.PreviewFeeds = f
 	}
-	return c
+	return r
 }
 
-func (c *Config) WithVersion(version string) *Config {
-	c.Version = version
-	return c
+func (r *Runtime) WithVersion(version string) *Runtime {
+	r.Version = version
+	return r
 }
 
-func (c *Config) WithDatabase(database string) *Config {
+func (r *Runtime) WithDatabase(database string) *Runtime {
 	if database != "" {
-		c.Database = database
+		r.Config.Database = database
 	}
-	return c
+	return r
 }
 
-func (c *Config) IsPreviewMode() bool {
-	return len(c.PreviewFeeds) > 0
+func (r *Runtime) IsPreviewMode() bool {
+	return len(r.PreviewFeeds) > 0
 }
 
-func (c *Config) Load() error {
-	err := c.setupConfigDir()
+func (r *Runtime) Load() error {
+	err := r.setupConfigDir()
 	if err != nil {
 		return fmt.Errorf("config Load: %w", err)
 	}
 
-	rawData, err := os.ReadFile(c.ConfigPath)
+	rawData, err := os.ReadFile(r.ConfigPath)
 	if err != nil {
 		return fmt.Errorf("config.Load: %w", err)
 	}
@@ -196,56 +203,56 @@ func (c *Config) Load() error {
 		return fmt.Errorf("config.Read: %w", err)
 	}
 
-	c.ShowRead = fileConfig.ShowRead
-	c.AutoRead = fileConfig.AutoRead
-	c.Feeds = fileConfig.Feeds
+	r.Config.ShowRead = fileConfig.ShowRead
+	r.Config.AutoRead = fileConfig.AutoRead
+	r.Config.Feeds = fileConfig.Feeds
 	if fileConfig.Database != "" {
-		c.Database = fileConfig.Database
+		r.Config.Database = fileConfig.Database
 	}
-	c.Openers = fileConfig.Openers
-	c.ShowFavourites = fileConfig.ShowFavourites
-	c.Filtering = fileConfig.Filtering
-	c.RefreshInterval = fileConfig.RefreshInterval
+	r.Config.Openers = fileConfig.Openers
+	r.Config.ShowFavourites = fileConfig.ShowFavourites
+	r.Config.Filtering = fileConfig.Filtering
+	r.Config.RefreshInterval = fileConfig.RefreshInterval
 
 	if fileConfig.HTTPOptions != nil {
 		if _, err := TLSVersion(fileConfig.HTTPOptions.MinTLSVersion); err != nil {
 			return err
 		}
-		c.HTTPOptions = fileConfig.HTTPOptions
+		r.Config.HTTPOptions = fileConfig.HTTPOptions
 	}
 
 	if len(fileConfig.Ordering) > 0 {
-		c.Ordering = fileConfig.Ordering
+		r.Config.Ordering = fileConfig.Ordering
 	}
 
 	if len(fileConfig.Theme.ReadIcon) > 0 {
-		c.Theme.ReadIcon = fileConfig.Theme.ReadIcon
+		r.Config.Theme.ReadIcon = fileConfig.Theme.ReadIcon
 	}
 
 	if fileConfig.Theme.Glamour != "" {
-		c.Theme.Glamour = fileConfig.Theme.Glamour
+		r.Config.Theme.Glamour = fileConfig.Theme.Glamour
 	}
 
 	if fileConfig.Theme.SelectedItemColor != "" {
-		c.Theme.SelectedItemColor = fileConfig.Theme.SelectedItemColor
+		r.Config.Theme.SelectedItemColor = fileConfig.Theme.SelectedItemColor
 	}
 
 	if fileConfig.Theme.TitleColor != "" {
-		c.Theme.TitleColor = fileConfig.Theme.TitleColor
+		r.Config.Theme.TitleColor = fileConfig.Theme.TitleColor
 	}
 
 	if fileConfig.Theme.TitleColorFg != "" {
-		c.Theme.TitleColorFg = fileConfig.Theme.TitleColorFg
+		r.Config.Theme.TitleColorFg = fileConfig.Theme.TitleColorFg
 	}
 
 	if fileConfig.Theme.FilterColor != "" {
-		c.Theme.FilterColor = fileConfig.Theme.FilterColor
+		r.Config.Theme.FilterColor = fileConfig.Theme.FilterColor
 	}
 
 	// only set pager if it's not defined already, config file is lower
 	// precidence than flags/env that can be passed to New
-	if c.Pager == "" {
-		c.Pager = fileConfig.Pager
+	if r.Config.Pager == "" {
+		r.Config.Pager = fileConfig.Pager
 	}
 
 	if fileConfig.Backends != nil {
@@ -255,7 +262,7 @@ func (c *Config) Load() error {
 				return err
 			}
 
-			c.Feeds = append(c.Feeds, mffeeds...)
+			r.Config.Feeds = append(r.Config.Feeds, mffeeds...)
 		}
 
 		if fileConfig.Backends.FreshRSS != nil {
@@ -264,7 +271,7 @@ func (c *Config) Load() error {
 				return err
 			}
 
-			c.Feeds = append(c.Feeds, freshfeeds...)
+			r.Config.Feeds = append(r.Config.Feeds, freshfeeds...)
 		}
 	}
 
@@ -272,13 +279,13 @@ func (c *Config) Load() error {
 }
 
 // Write writes to a config file
-func (c *Config) Write() error {
-	str, err := yaml.Marshal(c)
+func (r *Runtime) Write() error {
+	str, err := yaml.Marshal(r.Config)
 	if err != nil {
 		return fmt.Errorf("config.Write: %w", err)
 	}
 
-	err = os.WriteFile(c.ConfigPath, []byte(str), 0655)
+	err = os.WriteFile(r.ConfigPath, []byte(str), 0655)
 	if err != nil {
 		return fmt.Errorf("config.Write: %w", err)
 	}
@@ -286,21 +293,21 @@ func (c *Config) Write() error {
 	return nil
 }
 
-func (c *Config) AddFeed(feed Feed) error {
-	err := c.Load()
+func (r *Runtime) AddFeed(feed Feed) error {
+	err := r.Load()
 	if err != nil {
 		return fmt.Errorf("config.AddFeed: %w", err)
 	}
 
-	for _, f := range c.Feeds {
+	for _, f := range r.Config.Feeds {
 		if f.URL == feed.URL {
 			return ErrFeedAlreadyExists
 		}
 	}
 
-	c.Feeds = append(c.Feeds, feed)
+	r.Config.Feeds = append(r.Config.Feeds, feed)
 
-	err = c.Write()
+	err = r.Write()
 	if err != nil {
 		return fmt.Errorf("config.AddFeed: %w", err)
 	}
@@ -308,16 +315,16 @@ func (c *Config) AddFeed(feed Feed) error {
 	return nil
 }
 
-func (c *Config) GetFeeds() []Feed {
-	if c.IsPreviewMode() {
-		return c.PreviewFeeds
+func (r *Runtime) GetFeeds() []Feed {
+	if r.IsPreviewMode() {
+		return r.PreviewFeeds
 	}
 
-	return c.Feeds
+	return r.Config.Feeds
 }
 
-func (c *Config) setupConfigDir() error {
-	_, err := os.Stat(c.ConfigPath)
+func (r *Runtime) setupConfigDir() error {
+	_, err := os.Stat(r.ConfigPath)
 
 	// if configFile exists, do nothing
 	if !errors.Is(err, os.ErrNotExist) {
@@ -325,13 +332,13 @@ func (c *Config) setupConfigDir() error {
 	}
 
 	// if not, create directory. noop if directory exists
-	err = os.MkdirAll(c.ConfigDir, 0755)
+	err = os.MkdirAll(r.ConfigDir, 0755)
 	if err != nil {
 		return fmt.Errorf("setupConfigDir: %w", err)
 	}
 
 	// then create the file
-	_, err = os.Create(c.ConfigPath)
+	_, err = os.Create(r.ConfigPath)
 	if err != nil {
 		return fmt.Errorf("setupConfigDir: %w", err)
 	}
@@ -339,8 +346,8 @@ func (c *Config) setupConfigDir() error {
 	return err
 }
 
-func (c *Config) ImportFeeds() ([]Feed, error) {
-	err := c.Load()
+func (r *Runtime) ImportFeeds() ([]Feed, error) {
+	err := r.Load()
 	if err != nil {
 		return nil, fmt.Errorf("config.ImportFeeds: %w", err)
 	}

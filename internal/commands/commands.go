@@ -27,12 +27,12 @@ import (
 )
 
 type Commands struct {
-	config *config.Config
-	store  store.Store
+	runtime *config.Runtime
+	store   store.Store
 }
 
-func New(config *config.Config, store store.Store) *Commands {
-	return &Commands{config, store}
+func New(runtime *config.Runtime, store store.Store) *Commands {
+	return &Commands{runtime, store}
 }
 
 func convertItems(its []store.Item) []list.Item {
@@ -83,7 +83,7 @@ func (c Commands) List() error {
 		output += fmt.Sprintf("%s \n  - %s\n", item.Title, item.Link)
 	}
 
-	if c.config.Pager == "false" {
+	if c.runtime.Config.Pager == "false" {
 		fmt.Println(output)
 		return nil
 	}
@@ -92,7 +92,7 @@ func (c Commands) List() error {
 }
 
 func (c Commands) Add(url string, name string) error {
-	err := c.config.AddFeed(config.Feed{URL: url, Name: name})
+	err := c.runtime.AddFeed(config.Feed{URL: url, Name: name})
 	if err != nil {
 		return fmt.Errorf("commands Add: %w", err)
 	}
@@ -110,7 +110,7 @@ func (c Commands) Refresh() error {
 }
 
 func (c Commands) ShowConfig() error {
-	yaml, err := yaml.Marshal(&c.config)
+	yaml, err := yaml.Marshal(&c.runtime.Config)
 	if err != nil {
 		return fmt.Errorf("commands Config: %w", err)
 	}
@@ -158,7 +158,7 @@ func (c Commands) ImportFeeds(source string) error {
 
 	errors := 0
 	for _, feed := range feeds {
-		err := c.config.AddFeed(feed)
+		err := c.runtime.AddFeed(feed)
 		if err != nil {
 			errors++
 			log.Printf("config.ImportFeeds: %s\n", err)
@@ -206,7 +206,7 @@ func (c Commands) fetchAllFeeds() ([]store.Item, []ErrorItem, error) {
 		errorItems []ErrorItem
 	)
 
-	feeds := c.config.GetFeeds()
+	feeds := c.runtime.GetFeeds()
 
 	if len(feeds) <= 0 {
 		return items, errorItems, fmt.Errorf("no feeds found, add to nom/config.yml")
@@ -217,7 +217,7 @@ func (c Commands) fetchAllFeeds() ([]store.Item, []ErrorItem, error) {
 	for _, feed := range feeds {
 		wg.Add(1)
 
-		go fetchFeed(ch, &wg, feed, c.config.HTTPOptions, c.config.Version)
+		go fetchFeed(ch, &wg, feed, c.runtime.Config.HTTPOptions, c.runtime.Version)
 	}
 
 	go func() {
@@ -272,12 +272,12 @@ func includes[T comparable](arr []T, item T) bool {
 }
 
 func (c Commands) Monitor(prog *tea.Program) {
-	if c.config.RefreshInterval == 0 {
+	if c.runtime.Config.RefreshInterval == 0 {
 		return
 	}
 
 	go func() {
-		t := time.NewTicker(time.Duration(c.config.RefreshInterval) * time.Minute)
+		t := time.NewTicker(time.Duration(c.runtime.Config.RefreshInterval) * time.Minute)
 		for range t.C {
 			err := c.Refresh()
 			if err != nil {
@@ -316,14 +316,14 @@ func (c Commands) GetGlamourisedArticle(ID int) (string, error) {
 		return "", fmt.Errorf("commands.FindGlamourisedArticle: %w", err)
 	}
 
-	if c.config.AutoRead && !article.Read() {
+	if c.runtime.Config.AutoRead && !article.Read() {
 		err = c.store.ToggleRead(article.ID)
 		if err != nil {
 			return "", fmt.Errorf("[commands.go] GetGlamourisedArticle: %w", err)
 		}
 	}
 
-	content, err := glamouriseItem(article, c.config.Theme)
+	content, err := glamouriseItem(article, c.runtime.Config.Theme)
 	if err != nil {
 		return "", fmt.Errorf("[commands.go] GetGlamourisedArticle: %w", err)
 	}

@@ -95,10 +95,10 @@ func (m *model) UpdateList() tea.Cmd {
 func sortList(m model) func() tea.Msg {
 	return func() tea.Msg {
 		// reverse sorting order
-		if m.commands.config.Ordering == constants.AscendingOrdering {
-			m.commands.config.Ordering = constants.DescendingOrdering
+		if m.commands.runtime.Config.Ordering == constants.AscendingOrdering {
+			m.commands.runtime.Config.Ordering = constants.DescendingOrdering
 		} else {
-			m.commands.config.Ordering = constants.AscendingOrdering
+			m.commands.runtime.Config.Ordering = constants.AscendingOrdering
 		}
 
 		items, err := m.commands.GetAllFeeds()
@@ -118,7 +118,7 @@ func refreshList(m model) func() tea.Msg {
 		var err error
 		var items []store.Item
 		// if no feeds in store, fetchAllFeeds, which will return previews
-		if len(m.commands.config.PreviewFeeds) > 0 {
+		if len(m.commands.runtime.PreviewFeeds) > 0 {
 			items, errorItems, err = m.commands.fetchAllFeeds()
 			if err != nil {
 				es = append(es, fmt.Errorf("[tui.go] updateList: %w", err).Error())
@@ -213,7 +213,7 @@ func updateList(msg tea.Msg, m model) (tea.Model, tea.Cmd) {
 				break
 			}
 
-			m.commands.config.ToggleShowRead()
+			m.commands.runtime.ToggleShowRead()
 			cmds = append(cmds, m.UpdateList())
 
 		case key.Matches(msg, ListKeyMap.MarkAllRead):
@@ -251,13 +251,13 @@ func updateList(msg tea.Msg, m model) (tea.Model, tea.Cmd) {
 				break
 			}
 
-			if m.commands.config.ShowFavourites {
+			if m.commands.runtime.Config.ShowFavourites {
 				m.list.NewStatusMessage("")
 			} else {
 				m.list.NewStatusMessage("favourites")
 			}
 
-			m.commands.config.ToggleShowFavourites()
+			m.commands.runtime.ToggleShowFavourites()
 			cmds = append(cmds, m.UpdateList())
 
 		case key.Matches(msg, ViewportKeyMap.OpenInBrowser):
@@ -309,7 +309,7 @@ func updateList(msg tea.Msg, m model) (tea.Model, tea.Cmd) {
 			}
 
 		case key.Matches(msg, ListKeyMap.EditConfig):
-			filePath := m.cfg.ConfigPath
+			filePath := m.runtime.ConfigPath
 
 			cmd := strings.Split(getEditor("NOMEDITOR", "VISUAL", "EDITOR"), " ")
 			cmd = append(cmd, filePath)
@@ -321,7 +321,7 @@ func updateList(msg tea.Msg, m model) (tea.Model, tea.Cmd) {
 					return nil
 				}
 
-				err = m.cfg.Load()
+				err = m.runtime.Load()
 				if err != nil {
 					m.list.NewStatusMessage(err.Error())
 					return nil

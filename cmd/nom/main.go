@@ -115,7 +115,7 @@ func (r *Import) Execute(args []string) error {
 }
 
 func getCmds() (*commands.Commands, error) {
-	cfg := config.New().
+	runtime := config.New().
 		WithConfigPath(options.ConfigPath).
 		WithPager(options.Pager).
 		WithPreviewFeeds(options.PreviewFeeds).
@@ -123,19 +123,19 @@ func getCmds() (*commands.Commands, error) {
 
 	var err error
 
-	if err = cfg.Load(); err != nil {
+	if err = runtime.Load(); err != nil {
 		return nil, err
 	}
 	var s store.Store
-	if cfg.IsPreviewMode() {
+	if runtime.IsPreviewMode() {
 		s, err = store.NewInMemorySQLiteStore()
 	} else {
-		s, err = store.NewSQLiteStore(cfg.ConfigDir, cfg.Database)
+		s, err = store.NewSQLiteStore(runtime.ConfigDir, runtime.Config.Database)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("main.go: %w", err)
 	}
-	cmds := commands.New(cfg, s)
+	cmds := commands.New(runtime, s)
 	return cmds, nil
 }
 

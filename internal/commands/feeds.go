@@ -18,10 +18,10 @@ func (c Commands) CleanFeeds() error {
 	var urlsToRemove []string
 
 	var feeds []config.Feed
-	if c.config.IsPreviewMode() {
-		feeds = c.config.PreviewFeeds
+	if c.runtime.IsPreviewMode() {
+		feeds = c.runtime.PreviewFeeds
 	} else {
-		feeds = c.config.Feeds
+		feeds = c.runtime.Config.Feeds
 	}
 
 	for _, u := range urls {
@@ -52,14 +52,14 @@ func (c Commands) GetAllFeeds() ([]store.Item, error) {
 		return []store.Item{}, fmt.Errorf("[commands.go] GetAllFeeds: %w", err)
 	}
 
-	is, err := c.store.GetAllItems(c.config.Ordering)
+	is, err := c.store.GetAllItems(c.runtime.Config.Ordering)
 	if err != nil {
 		return []store.Item{}, fmt.Errorf("commands.go: GetAllFeeds %w", err)
 	}
 
-	if c.config.ShowFavourites {
+	if c.runtime.Config.ShowFavourites {
 		is = onlyFavourites(is)
-	} else if c.config.ShowRead {
+	} else if c.runtime.Config.ShowRead {
 		is = showRead(is)
 	} else {
 		is = defaultView(is)
@@ -67,7 +67,7 @@ func (c Commands) GetAllFeeds() ([]store.Item, error) {
 
 	// add FeedName from config for custom names
 	for i := 0; i < len(is); i++ {
-		for _, f := range c.config.Feeds {
+		for _, f := range c.runtime.Config.Feeds {
 			if f.URL == is[i].FeedURL {
 				is[i].FeedName = f.Name
 			}

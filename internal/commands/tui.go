@@ -41,7 +41,7 @@ func (i TUIItem) FilterValue() string { return fmt.Sprintf("%s||%s", i.Title, i.
 
 type model struct {
 	selectedArticle *int
-	cfg             *config.Config
+	runtime         *config.Runtime
 	commands        *Commands
 	errors          []string
 	list            list.Model
@@ -92,7 +92,7 @@ func (m model) View() string {
 
 func (m model) OpenLink(url string) tea.Cmd {
 	hasOpener := false
-	for _, o := range m.cfg.Openers {
+	for _, o := range m.runtime.Config.Openers {
 		match, err := regexp.MatchString(o.Regex, url)
 		if err != nil {
 			return tea.Quit
@@ -191,7 +191,7 @@ func (c *Commands) TUI() error {
 
 	var errorItems []ErrorItem
 	// if no feeds in store, fetchAllFeeds, which will return previews
-	if len(c.config.PreviewFeeds) > 0 || len(its) == 0 {
+	if len(c.runtime.PreviewFeeds) > 0 || len(its) == 0 {
 		_, errorItems, err = c.fetchAllFeeds()
 		if err != nil {
 			return fmt.Errorf("[commands.go] TUI: %w", err)
@@ -210,7 +210,7 @@ func (c *Commands) TUI() error {
 		es = append(es, fmt.Sprintf("Error fetching %s: %s", e.FeedURL, e.Err))
 	}
 
-	prog, err := Render(items, c, es, c.config)
+	prog, err := Render(items, c, es, c.runtime)
 	if err != nil {
 		return fmt.Errorf("commands.TUI: %w", err)
 	}
@@ -224,7 +224,7 @@ func (c *Commands) TUI() error {
 	return nil
 }
 
-func Render(items []list.Item, cmds *Commands, errors []string, cfg *config.Config) (*tea.Program, error) {
+func Render(items []list.Item, cmds *Commands, errors []string, runtime *config.Runtime) (*tea.Program, error) {
 	const defaultWidth = 20
 	_, ts, _ := term.GetSize(int(os.Stdout.Fd()))
 	_, y := appStyle.GetFrameSize()
@@ -232,26 +232,26 @@ func Render(items []list.Item, cmds *Commands, errors []string, cfg *config.Conf
 
 	appStyle.Height(height)
 
-	l := list.New(items, itemDelegate{theme: cfg.Theme}, defaultWidth, height)
+	l := list.New(items, itemDelegate{theme: runtime.Config.Theme}, defaultWidth, height)
 	l.SetShowStatusBar(false)
 	l.Title = defaultTitle
 	l.Styles.Title = titleStyle.
-		Background(lipgloss.Color(cfg.Theme.TitleColor)).
-		Foreground(lipgloss.Color(cfg.Theme.TitleColorFg))
+		Background(lipgloss.Color(runtime.Config.Theme.TitleColor)).
+		Foreground(lipgloss.Color(runtime.Config.Theme.TitleColorFg))
 
 	l.Styles.PaginationStyle = paginationStyle
 	l.Styles.HelpStyle = helpStyle
 
-	l.FilterInput.PromptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(cfg.Theme.FilterColor))
+	l.FilterInput.PromptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(runtime.Config.Theme.FilterColor))
 
-	l.Filter = CustomFilter(cfg.Filtering)
+	l.Filter = CustomFilter(runtime.Config.Filtering)
 
 	ListKeyMap.SetOverrides(&l)
 
 	vp := viewport.New(78, height)
 
 	m := model{
-		cfg:      cfg,
+		runtime:  runtime,
 		commands: cmds,
 		errors:   errors,
 		help:     help.New(),

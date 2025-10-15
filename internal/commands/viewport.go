@@ -60,7 +60,7 @@ func updateViewport(msg tea.Msg, m model) (tea.Model, tea.Cmd) {
 			}
 
 		case key.Matches(msg, ViewportKeyMap.Read):
-			if m.commands.config.AutoRead {
+			if m.commands.runtime.Config.AutoRead {
 				return m, nil
 			}
 			current, err := m.commands.store.GetItemByID(*m.selectedArticle)
@@ -72,7 +72,7 @@ func updateViewport(msg tea.Msg, m model) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 			}
 
-			if !m.commands.config.ShowRead {
+			if !m.commands.runtime.Config.ShowRead {
 				index := m.list.Index()
 
 				if m.lastRead != nil && current.ID == (*m.lastRead).(TUIItem).ID {
@@ -116,7 +116,7 @@ func updateViewport(msg tea.Msg, m model) (tea.Model, tea.Cmd) {
 
 			m.viewport.SetContent(content)
 			m.viewport.GotoTop()
-			if m.commands.config.AutoRead && !m.commands.config.ShowRead {
+			if m.commands.runtime.Config.AutoRead && !m.commands.runtime.Config.ShowRead {
 				m.list.RemoveItem(m.list.Index())
 			}
 
@@ -139,7 +139,7 @@ func updateViewport(msg tea.Msg, m model) (tea.Model, tea.Cmd) {
 
 			m.viewport.SetContent(content)
 			m.viewport.GotoTop()
-			if m.commands.config.AutoRead && !m.commands.config.ShowRead {
+			if m.commands.runtime.Config.AutoRead && !m.commands.runtime.Config.ShowRead {
 				m.list.RemoveItem(m.list.Index())
 			}
 
@@ -173,7 +173,7 @@ func (m *model) isNextOutOfBounds(i int, l int) bool {
 	maxIndex := l - 1
 
 	// when autoread and don't show read the first opened item doesn't exist in list
-	if m.commands.config.AutoRead && !m.commands.config.ShowRead && i == 0 {
+	if m.commands.runtime.Config.AutoRead && !m.commands.runtime.Config.ShowRead && i == 0 {
 		maxIndex = l
 	}
 
@@ -184,7 +184,7 @@ func (m *model) isNextOutOfBounds(i int, l int) bool {
 }
 
 func (m *model) getNextIndex() int {
-	if m.commands.config.AutoRead && !m.commands.config.ShowRead {
+	if m.commands.runtime.Config.AutoRead && !m.commands.runtime.Config.ShowRead {
 		return m.list.Index()
 	}
 
@@ -193,7 +193,7 @@ func (m *model) getNextIndex() int {
 	if err != nil {
 		return m.list.Index()
 	}
-	if !m.commands.config.AutoRead && current.Read() && !m.commands.config.ShowRead {
+	if !m.commands.runtime.Config.AutoRead && current.Read() && !m.commands.runtime.Config.ShowRead {
 		return m.list.Index()
 	}
 
@@ -202,7 +202,7 @@ func (m *model) getNextIndex() int {
 
 func (m *model) getPrevIndex() int {
 	current := m.list.Index()
-	if m.commands.config.AutoRead && !m.commands.config.ShowRead && current < len(m.list.Items()) {
+	if m.commands.runtime.Config.AutoRead && !m.commands.runtime.Config.ShowRead && current < len(m.list.Items()) {
 		return m.list.Index()
 	}
 
