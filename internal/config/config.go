@@ -65,12 +65,12 @@ type Config struct {
 	ConfigPath     string
 	ShowFavourites bool `yaml:"showfavourites,omitempty"`
 	Version        string
-	ConfigDir      string       `yaml:"-"`
-	Pager          string       `yaml:"pager,omitempty"`
-	Feeds          []Feed       `yaml:"feeds"`
-	Database       string       `yaml:"database"`
-	Ordering       string       `yaml:"ordering"`
-	Filtering      FilterConfig `yaml:"filtering"`
+	ConfigDir      string             `yaml:"-"`
+	Pager          string             `yaml:"pager,omitempty"`
+	Feeds          []Feed             `yaml:"feeds"`
+	Database       string             `yaml:"database"`
+	Ordering       constants.Ordering `yaml:"ordering"`
+	Filtering      FilterConfig       `yaml:"filtering"`
 	// Preview feeds are distinguished from Feeds because we don't want to inadvertenly write those into the config file.
 	PreviewFeeds    []Feed       `yaml:"previewfeeds,omitempty"`
 	Backends        *Backends    `yaml:"backends,omitempty"`

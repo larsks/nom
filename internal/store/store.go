@@ -37,7 +37,7 @@ type Store interface {
 	UpsertItem(item *Item) error
 	BeginBatch() error
 	EndBatch() error
-	GetAllItems(ordering string) ([]Item, error)
+	GetAllItems(ordering constants.Ordering) ([]Item, error)
 	GetItemByID(ID int) (Item, error)
 	GetAllFeedURLs() ([]string, error)
 	ToggleRead(ID int) error
@@ -254,7 +254,7 @@ func (sls *SQLiteStore) upsertItem(db statementPreparer, item *Item) error {
 }
 
 // TODO: pagination
-func (sls SQLiteStore) GetAllItems(ordering string) ([]Item, error) {
+func (sls SQLiteStore) GetAllItems(ordering constants.Ordering) ([]Item, error) {
 	itemStmt := `
 		select id, feedurl, guid, link, title, content, author, readat, favourite, publishedat, createdat, updatedat from items order by coalesce(publishedat, createdat) %s;
 	`
