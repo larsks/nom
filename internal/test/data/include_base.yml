@@ -1,0 +1,5 @@
+feeds:
+  - url: base-feed
+ordering: asc
+theme:
+  titleColor: "100"

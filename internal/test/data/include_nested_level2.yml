@@ -1,0 +1,4 @@
+feeds:
+  - url: level2-feed
+ordering: asc
+pager: cat

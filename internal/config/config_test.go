@@ -150,3 +150,118 @@ func TestConfigSetupDir(t *testing.T) {
 
 	cleanup()
 }
+
+func TestIncludeBasic(t *testing.T) {
+	c := New().WithConfigPath("../test/data/include_main.yml")
+	err := c.Load()
+	if err != nil {
+		t.Fatalf("Failed to load config with includes: %s", err)
+	}
+
+	// Main config should override included configs
+	if len(c.Config.Feeds) != 1 || c.Config.Feeds[0].URL != "main-feed" {
+		t.Fatalf("Expected main-feed, got %v", c.Config.Feeds)
+	}
+
+	// Ordering from include_override.yml should be present
+	if c.Config.Ordering != "desc" {
+		t.Fatalf("Expected ordering 'desc', got %s", c.Config.Ordering)
+	}
+
+	// TitleColor from main config should override include_base.yml
+	if c.Config.Theme.TitleColor != "200" {
+		t.Fatalf("Expected titleColor '200', got %s", c.Config.Theme.TitleColor)
+	}
+
+	// Pager from include_override.yml should be present
+	if c.Config.Pager != "less" {
+		t.Fatalf("Expected pager 'less', got %s", c.Config.Pager)
+	}
+}
+
+func TestIncludeLoop(t *testing.T) {
+	c := New().WithConfigPath("../test/data/include_loop_a.yml")
+	err := c.Load()
+	if err == nil {
+		t.Fatalf("Expected error for include loop, got nil")
+	}
+
+	// Check if the error chain contains ErrIncludeLoop
+	var found bool
+	for e := err; e != nil; {
+		if e == ErrIncludeLoop {
+			found = true
+			break
+		}
+		// Unwrap if possible
+		if unwrapper, ok := e.(interface{ Unwrap() error }); ok {
+			e = unwrapper.Unwrap()
+		} else {
+			break
+		}
+	}
+
+	if !found {
+		t.Fatalf("Expected ErrIncludeLoop in error chain, got %v", err)
+	}
+}
+
+func TestIncludeNested(t *testing.T) {
+	c := New().WithConfigPath("../test/data/include_nested_level1.yml")
+	err := c.Load()
+	if err != nil {
+		t.Fatalf("Failed to load nested config: %s", err)
+	}
+
+	// Level 1 feeds should override level 2
+	if len(c.Config.Feeds) != 1 || c.Config.Feeds[0].URL != "level1-feed" {
+		t.Fatalf("Expected level1-feed, got %v", c.Config.Feeds)
+	}
+
+	// Level 1 ordering should override level 2
+	if c.Config.Ordering != "desc" {
+		t.Fatalf("Expected ordering 'desc', got %s", c.Config.Ordering)
+	}
+
+	// Pager from level 2 should still be present
+	if c.Config.Pager != "cat" {
+		t.Fatalf("Expected pager 'cat', got %s", c.Config.Pager)
+	}
+}
+
+func TestIncludeMissingFile(t *testing.T) {
+	// Create a temporary config file with a missing include
+	tmpfile, err := os.CreateTemp("", "config_*.yml")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %s", err)
+	}
+	defer os.Remove(tmpfile.Name())
+
+	content := []byte("include:\n  - nonexistent.yml\nfeeds:\n  - url: test\n")
+	if _, err := tmpfile.Write(content); err != nil {
+		t.Fatalf("Failed to write temp file: %s", err)
+	}
+	tmpfile.Close()
+
+	c := New().WithConfigPath(tmpfile.Name())
+	err = c.Load()
+	if err == nil {
+		t.Fatalf("Expected error for missing include file, got nil")
+	}
+}
+
+func TestResolveIncludePath(t *testing.T) {
+	// Test relative path
+	result := resolveIncludePath("/home/user/config", "subdir/file.yml")
+	expected := "/home/user/config/subdir/file.yml"
+	if result != expected {
+		t.Fatalf("Expected %s, got %s", expected, result)
+	}
+
+	// Test absolute path
+	result = resolveIncludePath("/home/user/config", "/etc/nom/file.yml")
+	expected = "/etc/nom/file.yml"
+	if result != expected {
+		t.Fatalf("Expected %s, got %s", expected, result)
+	}
+}

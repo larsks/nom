@@ -1,0 +1,5 @@
+include:
+  - include_nested_level2.yml
+feeds:
+  - url: level1-feed
+ordering: desc

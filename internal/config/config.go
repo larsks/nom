@@ -14,6 +14,7 @@ import (
 
 var (
 	ErrFeedAlreadyExists  = errors.New("config.AddFeed: feed already exists")
+	ErrIncludeLoop        = errors.New("config.Load: include loop detected")
 	DefaultConfigDirName  = "nom"
 	DefaultConfigFileName = "config.yml"
 	DefaultDatabaseName   = "nom.db"
@@ -75,6 +76,7 @@ type Config struct {
 	Theme           Theme              `yaml:"theme,omitempty"`
 	HTTPOptions     *HTTPOptions       `yaml:"http,omitempty"`
 	RefreshInterval int                `yaml:"refreshinterval,omitempty"`
+	Include         []string           `yaml:"include,omitempty"`
 }
 
 // Runtime contains non-serializable runtime settings and the YAML config
@@ -185,24 +187,168 @@ func (r *Runtime) IsPreviewMode() bool {
 	return len(r.PreviewFeeds) > 0
 }
 
+// resolveIncludePath resolves an include path relative to the config directory
+// if it's not an absolute path
+func resolveIncludePath(configDir, includePath string) string {
+	if filepath.IsAbs(includePath) {
+		return includePath
+	}
+	return filepath.Join(configDir, includePath)
+}
+
+// loadConfigFile loads a single config file and returns the parsed Config
+func loadConfigFile(path string) (*Config, error) {
+	rawData, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("config.loadConfigFile: %w", err)
+	}
+
+	var cfg Config
+	err = yaml.Unmarshal(rawData, &cfg)
+	if err != nil {
+		return nil, fmt.Errorf("config.loadConfigFile: %w", err)
+	}
+
+	return &cfg, nil
+}
+
+// mergeConfig merges src config into dst config, with src values taking precedence
+func mergeConfig(dst, src *Config) {
+	// Only override if src has non-zero values
+	if src.ShowRead {
+		dst.ShowRead = src.ShowRead
+	}
+	if src.AutoRead {
+		dst.AutoRead = src.AutoRead
+	}
+	if len(src.Feeds) > 0 {
+		dst.Feeds = src.Feeds
+	}
+	if src.Database != "" {
+		dst.Database = src.Database
+	}
+	if len(src.Openers) > 0 {
+		dst.Openers = src.Openers
+	}
+	if src.ShowFavourites {
+		dst.ShowFavourites = src.ShowFavourites
+	}
+	if src.Filtering.DefaultIncludeFeedName {
+		dst.Filtering = src.Filtering
+	}
+	if src.RefreshInterval != 0 {
+		dst.RefreshInterval = src.RefreshInterval
+	}
+	if src.HTTPOptions != nil {
+		dst.HTTPOptions = src.HTTPOptions
+	}
+	if len(src.Ordering) > 0 {
+		dst.Ordering = src.Ordering
+	}
+	if len(src.Theme.ReadIcon) > 0 {
+		dst.Theme.ReadIcon = src.Theme.ReadIcon
+	}
+	if src.Theme.Glamour != "" {
+		dst.Theme.Glamour = src.Theme.Glamour
+	}
+	if src.Theme.SelectedItemColor != "" {
+		dst.Theme.SelectedItemColor = src.Theme.SelectedItemColor
+	}
+	if src.Theme.TitleColor != "" {
+		dst.Theme.TitleColor = src.Theme.TitleColor
+	}
+	if src.Theme.TitleColorFg != "" {
+		dst.Theme.TitleColorFg = src.Theme.TitleColorFg
+	}
+	if src.Theme.FilterColor != "" {
+		dst.Theme.FilterColor = src.Theme.FilterColor
+	}
+	if src.Pager != "" {
+		dst.Pager = src.Pager
+	}
+	if src.Backends != nil {
+		dst.Backends = src.Backends
+	}
+	if len(src.Include) > 0 {
+		dst.Include = src.Include
+	}
+}
+
+// loadConfigWithIncludes recursively loads config files with include support
+// visited tracks files already loaded to detect include loops
+func (r *Runtime) loadConfigWithIncludes(configPath string, visited map[string]bool) (*Config, error) {
+	// Normalize path for loop detection
+	absPath, err := filepath.Abs(configPath)
+	if err != nil {
+		return nil, fmt.Errorf("config.loadConfigWithIncludes: %w", err)
+	}
+
+	// Check for include loops
+	if visited[absPath] {
+		return nil, ErrIncludeLoop
+	}
+	visited[absPath] = true
+
+	// Load the config file
+	cfg, err := loadConfigFile(configPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// Process includes in order
+	if len(cfg.Include) > 0 {
+		configDir := filepath.Dir(configPath)
+		baseConfig := &Config{
+			Database:  DefaultDatabaseName,
+			Theme:     DefaultTheme,
+			Ordering:  constants.DefaultOrdering,
+			Filtering: FilterConfig{DefaultIncludeFeedName: false},
+			HTTPOptions: &HTTPOptions{
+				MinTLSVersion: tls.VersionName(tls.VersionTLS12),
+			},
+		}
+
+		for _, includePath := range cfg.Include {
+			resolvedPath := resolveIncludePath(configDir, includePath)
+
+			includedCfg, err := r.loadConfigWithIncludes(resolvedPath, visited)
+			if err != nil {
+				return nil, fmt.Errorf("config.loadConfigWithIncludes: error loading %s: %w", includePath, err)
+			}
+
+			mergeConfig(baseConfig, includedCfg)
+		}
+
+		// Merge the current config on top of all includes
+		mergeConfig(baseConfig, cfg)
+		cfg = baseConfig
+	}
+
+	return cfg, nil
+}
+
 func (r *Runtime) Load() error {
 	err := r.setupConfigDir()
 	if err != nil {
 		return fmt.Errorf("config Load: %w", err)
 	}
 
-	rawData, err := os.ReadFile(r.ConfigPath)
+	// Load config with include support
+	visited := make(map[string]bool)
+	fileConfig, err := r.loadConfigWithIncludes(r.ConfigPath, visited)
 	if err != nil {
 		return fmt.Errorf("config.Load: %w", err)
 	}
 
-	// manually set config values from fileconfig, messy solve for config priority
-	var fileConfig Config
-	err = yaml.Unmarshal(rawData, &fileConfig)
-	if err != nil {
-		return fmt.Errorf("config.Read: %w", err)
+	// Validate HTTPOptions if present
+	if fileConfig.HTTPOptions != nil {
+		if _, err := TLSVersion(fileConfig.HTTPOptions.MinTLSVersion); err != nil {
+			return err
+		}
 	}
 
+	// Merge loaded config with runtime config, respecting priority
+	// (command-line flags and builder methods take precedence over file)
 	r.Config.ShowRead = fileConfig.ShowRead
 	r.Config.AutoRead = fileConfig.AutoRead
 	r.Config.Feeds = fileConfig.Feeds
@@ -215,9 +361,6 @@ func (r *Runtime) Load() error {
 	r.Config.RefreshInterval = fileConfig.RefreshInterval
 
 	if fileConfig.HTTPOptions != nil {
-		if _, err := TLSVersion(fileConfig.HTTPOptions.MinTLSVersion); err != nil {
-			return err
-		}
 		r.Config.HTTPOptions = fileConfig.HTTPOptions
 	}
 
@@ -250,11 +393,16 @@ func (r *Runtime) Load() error {
 	}
 
 	// only set pager if it's not defined already, config file is lower
-	// precidence than flags/env that can be passed to New
+	// precedence than flags/env that can be passed to New
 	if r.Config.Pager == "" {
 		r.Config.Pager = fileConfig.Pager
 	}
 
+	if len(fileConfig.Include) > 0 {
+		r.Config.Include = fileConfig.Include
+	}
+
+	// Process backends and fetch feeds from external sources
 	if fileConfig.Backends != nil {
 		if fileConfig.Backends.Miniflux != nil {
 			mffeeds, err := getMinifluxFeeds(fileConfig.Backends.Miniflux)

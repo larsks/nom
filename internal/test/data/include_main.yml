@@ -1,0 +1,7 @@
+include:
+  - include_base.yml
+  - include_override.yml
+feeds:
+  - url: main-feed
+theme:
+  titleColor: "200"
