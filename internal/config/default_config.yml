@@ -1,0 +1,6 @@
+# Example nom configuration file. See https://github.com/guyfedwards/nom/blob/master/README.md#configuration
+# for documentation.
+
+feeds:
+  - name: Nom Releases
+    url: https://github.com/guyfedwards/nom/releases.atom

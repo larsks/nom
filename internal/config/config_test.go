@@ -140,7 +140,7 @@ func TestConfigSetupDir(t *testing.T) {
 		t.Fatalf("Failed to create %s", configDir)
 	}
 
-	c := New().WithConfigPath(configPath)
+	c := New().WithConfigPath(configPath).WithCreate(true)
 	c.Load()
 
 	_, err = os.Stat(configPath)
@@ -264,4 +264,81 @@ func TestResolveIncludePath(t *testing.T) {
 	if result != expected {
 		t.Fatalf("Expected %s, got %s", expected, result)
 	}
+}
+
+func TestConfigSetupDirWithoutCreateFlag(t *testing.T) {
+	// Clean up first to ensure the file doesn't exist
+	os.RemoveAll(configDir)
+	defer cleanup()
+
+	// Try to load a config file that doesn't exist without the Create flag
+	c := New().WithConfigPath(configPath).WithCreate(false)
+	err := c.Load()
+
+	// Should get an error because the file doesn't exist and Create is false
+	if err == nil {
+		t.Fatalf("Expected error when config file doesn't exist and Create is false, got nil")
+	}
+
+	// Verify the error message mentions using --create
+	expectedMsg := "use --create to create it"
+	if !containsString(err.Error(), expectedMsg) {
+		t.Fatalf("Expected error message to contain '%s', got: %s", expectedMsg, err.Error())
+	}
+
+	// Verify the file was not created
+	_, err = os.Stat(configPath)
+	if err == nil {
+		t.Fatalf("Config file should not have been created")
+	}
+}
+
+func TestConfigSetupDirWithCreateFlag(t *testing.T) {
+	// Clean up first to ensure the file doesn't exist
+	os.RemoveAll(configDir)
+	defer cleanup()
+
+	// Create the config file with the Create flag
+	c := New().WithConfigPath(configPath).WithCreate(true)
+	err := c.Load()
+	if err != nil {
+		t.Fatalf("Expected no error when Create is true, got: %s", err)
+	}
+
+	// Verify the file was created
+	_, err = os.Stat(configPath)
+	if err != nil {
+		t.Fatalf("Config file should have been created, got error: %s", err)
+	}
+}
+
+func TestConfigExistingFileWithoutCreateFlag(t *testing.T) {
+	// Use an existing config file
+	c := New().WithConfigPath(configFixturePath).WithCreate(false)
+	err := c.Load()
+
+	// Should work fine because the file exists
+	if err != nil {
+		t.Fatalf("Expected no error when config file exists, got: %s", err)
+	}
+
+	// Verify feeds were loaded correctly
+	if len(c.Config.Feeds) != 3 {
+		t.Fatalf("Expected 3 feeds, got %d", len(c.Config.Feeds))
+	}
+}
+
+// Helper function to check if a string contains a substring
+func containsString(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
+		(len(s) > 0 && len(substr) > 0 && findSubstring(s, substr)))
+}
+
+func findSubstring(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }

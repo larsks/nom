@@ -2,6 +2,7 @@ package config
 
 import (
 	"crypto/tls"
+	_ "embed"
 	"errors"
 	"fmt"
 	"os"
@@ -12,6 +13,9 @@ import (
 
 	"github.com/guyfedwards/nom/v2/internal/constants"
 )
+
+//go:embed default_config.yml
+var defaultConfig string
 
 var (
 	ErrFeedAlreadyExists  = errors.New("config.AddFeed: feed already exists")
@@ -89,6 +93,7 @@ type Runtime struct {
 	ConfigDir    string
 	PreviewFeeds []Feed
 	Version      string
+	Create       bool
 	Config       *Config
 }
 
@@ -178,6 +183,11 @@ func (r *Runtime) WithPreviewFeeds(previewFeeds []string) *Runtime {
 
 func (r *Runtime) WithVersion(version string) *Runtime {
 	r.Version = version
+	return r
+}
+
+func (r *Runtime) WithCreate(create bool) *Runtime {
+	r.Create = create
 	return r
 }
 
@@ -377,6 +387,11 @@ func (r *Runtime) setupConfigDir() error {
 		return nil
 	}
 
+	// if config file doesn't exist and Create flag is false, return error
+	if !r.Create {
+		return fmt.Errorf("setupConfigDir: config file does not exist: %s (use --create to create it)", r.ConfigPath)
+	}
+
 	// if not, create directory. noop if directory exists
 	err = os.MkdirAll(r.ConfigDir, 0755)
 	if err != nil {
@@ -384,7 +399,7 @@ func (r *Runtime) setupConfigDir() error {
 	}
 
 	// then create the file
-	_, err = os.Create(r.ConfigPath)
+	err = os.WriteFile(r.ConfigPath, []byte(defaultConfig), 0755)
 	if err != nil {
 		return fmt.Errorf("setupConfigDir: %w", err)
 	}

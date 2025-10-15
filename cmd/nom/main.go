@@ -16,6 +16,7 @@ type Options struct {
 	Pager        string   `short:"p" long:"pager" description:"Pager to use for longer output. Set to false for no pager"`
 	ConfigPath   string   `short:"c" long:"config-path" description:"Location of config.yml"`
 	PreviewFeeds []string `short:"f" long:"feed" description:"Feed(s) URL(s) for preview"`
+	Create       bool     `long:"create" description:"Create config file if it doesn't exist"`
 }
 
 var (
@@ -119,7 +120,8 @@ func getCmds() (*commands.Commands, error) {
 		WithConfigPath(options.ConfigPath).
 		WithPager(options.Pager).
 		WithPreviewFeeds(options.PreviewFeeds).
-		WithVersion(version)
+		WithVersion(version).
+		WithCreate(options.Create)
 
 	var err error
 
