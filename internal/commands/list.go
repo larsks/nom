@@ -351,7 +351,7 @@ func updateList(msg tea.Msg, m model) (tea.Model, tea.Cmd) {
 					return nil
 				}
 
-				err = m.runtime.Load()
+				_, err = m.runtime.Load()
 				if err != nil {
 					m.list.NewStatusMessage(err.Error())
 					return nil

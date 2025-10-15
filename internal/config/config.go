@@ -150,7 +150,7 @@ func New() *Runtime {
 		Version:      "",
 		Config: &Config{
 			Pager:           "",
-			Database:        defaultDatabaseName(configPath),
+			Database:        "", // Will be computed in Load() if not set via WithDatabase()
 			Feeds:           []Feed{},
 			Theme:           DefaultTheme,
 			RefreshInterval: 0,
@@ -170,8 +170,6 @@ func (r *Runtime) WithConfigPath(configPath string) *Runtime {
 	if configPath != "" {
 		r.ConfigPath = updateConfigPathIfDir(configPath)
 		r.ConfigDir, _ = filepath.Split(r.ConfigPath)
-		// Update database name to match the new config path
-		r.Config.Database = defaultDatabaseName(r.ConfigPath)
 	}
 	return r
 }
@@ -289,38 +287,41 @@ func (r *Runtime) loadConfigWithIncludes(configPath string, visited map[string]b
 	return cfg, nil
 }
 
-func (r *Runtime) Load() error {
+func (r *Runtime) Load() (*Runtime, error) {
 	err := r.setupConfigDir()
 	if err != nil {
-		return fmt.Errorf("config Load: %w", err)
+		return nil, fmt.Errorf("config Load: %w", err)
 	}
 
 	// Load config with include support
 	visited := make(map[string]bool)
 	fileConfig, err := r.loadConfigWithIncludes(r.ConfigPath, visited)
 	if err != nil {
-		return fmt.Errorf("config.Load: %w", err)
+		return nil, fmt.Errorf("config.Load: %w", err)
 	}
 
 	// Validate HTTPOptions if present
 	if fileConfig.HTTPOptions != nil {
 		if _, err := TLSVersion(fileConfig.HTTPOptions.MinTLSVersion); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	// Store the pager value before merging (command-line flags take precedence)
-	existingPager := r.Config.Pager
+	// Store database name in case it was set explicitly
+	existingDatabase := r.Config.Database
 
 	// Merge loaded config with runtime config
-	// fileConfig values override r.Config defaults (except pager, handled below)
+	// fileConfig values override r.Config defaults (except values set via With*(), handled below)
 	if err := mergo.Merge(r.Config, fileConfig, mergo.WithOverride); err != nil {
-		return fmt.Errorf("config.Load: error merging config: %w", err)
+		return nil, fmt.Errorf("config.Load: error merging config: %w", err)
 	}
 
-	// Restore pager if it was set via command-line (higher precedence than file)
-	if existingPager != "" {
-		r.Config.Pager = existingPager
+	// Compute database name from config path if not explicitly set
+	if existingDatabase == "" && r.Config.Database == "" {
+		r.Config.Database = defaultDatabaseName(r.ConfigPath)
+	} else if existingDatabase != "" {
+		// Restore database if it was set via WithDatabase() (higher precedence than file)
+		r.Config.Database = existingDatabase
 	}
 
 	// Process backends and fetch feeds from external sources
@@ -328,7 +329,7 @@ func (r *Runtime) Load() error {
 		if fileConfig.Backends.Miniflux != nil {
 			mffeeds, err := getMinifluxFeeds(fileConfig.Backends.Miniflux)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			r.Config.Feeds = append(r.Config.Feeds, mffeeds...)
@@ -337,14 +338,14 @@ func (r *Runtime) Load() error {
 		if fileConfig.Backends.FreshRSS != nil {
 			freshfeeds, err := getFreshRSSFeeds(fileConfig.Backends.FreshRSS)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			r.Config.Feeds = append(r.Config.Feeds, freshfeeds...)
 		}
 	}
 
-	return nil
+	return r, nil
 }
 
 // Write writes to a config file
@@ -363,7 +364,7 @@ func (r *Runtime) Write() error {
 }
 
 func (r *Runtime) AddFeed(feed Feed) error {
-	err := r.Load()
+	_, err := r.Load()
 	if err != nil {
 		return fmt.Errorf("config.AddFeed: %w", err)
 	}
@@ -421,7 +422,7 @@ func (r *Runtime) setupConfigDir() error {
 }
 
 func (r *Runtime) ImportFeeds() ([]Feed, error) {
-	err := r.Load()
+	_, err := r.Load()
 	if err != nil {
 		return nil, fmt.Errorf("config.ImportFeeds: %w", err)
 	}

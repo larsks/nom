@@ -20,7 +20,10 @@ func cleanup() {
 }
 
 func TestNewDefault(t *testing.T) {
-	c := New()
+	c, err := New().WithCreate(true).Load()
+	if err != nil {
+		t.Fatalf("Failed to load config: %s", err)
+	}
 	ucd, _ := os.UserConfigDir()
 
 	test.Equal(t, fmt.Sprintf("%s/nom/default.yml", ucd), c.ConfigPath, "Wrong defaults set")
@@ -47,16 +50,20 @@ func TestNewOverride(t *testing.T) {
 }
 
 func TestPreviewFeedsOverrideFeedsFromConfigFile(t *testing.T) {
-	c := New().WithConfigPath(configFixturePath)
-	c.Load()
+	c, err := New().WithConfigPath(configFixturePath).Load()
+	if err != nil {
+		t.Fatalf("Failed to load config: %s", err)
+	}
 	feeds := c.GetFeeds()
 	test.Equal(t, 3, len(feeds), "Incorrect feeds number")
 	test.Equal(t, "cattle", feeds[0].URL, "First feed in a config must be cattle")
 	test.Equal(t, "bird", feeds[1].URL, "Second feed in a config must be bird")
 	test.Equal(t, "dog", feeds[2].URL, "Third feed in a config must be dog")
 
-	c = New().WithConfigPath(configFixturePath).WithPreviewFeeds([]string{"pumpkin", "radish"})
-	c.Load()
+	c, err = New().WithConfigPath(configFixturePath).WithPreviewFeeds([]string{"pumpkin", "radish"}).Load()
+	if err != nil {
+		t.Fatalf("Failed to load config: %s", err)
+	}
 	feeds = c.GetFeeds()
 	test.Equal(t, 2, len(feeds), "Incorrect feeds number")
 	test.Equal(t, "pumpkin", feeds[0].URL, "First feed in a config must be pumpkin")
@@ -64,8 +71,7 @@ func TestPreviewFeedsOverrideFeedsFromConfigFile(t *testing.T) {
 }
 
 func TestConfigLoad(t *testing.T) {
-	c := New().WithConfigPath(configFixturePath)
-	err := c.Load()
+	c, err := New().WithConfigPath(configFixturePath).Load()
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -97,9 +103,7 @@ func TestConfigLoadFromDirectory(t *testing.T) {
 }
 
 func TestConfigLoadPrecidence(t *testing.T) {
-	c := New().WithConfigPath(configFixturePath).WithPager("testpager")
-
-	err := c.Load()
+	c, err := New().WithConfigPath(configFixturePath).WithPager("testpager").Load()
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -110,9 +114,7 @@ func TestConfigLoadPrecidence(t *testing.T) {
 }
 
 func TestConfigAddFeed(t *testing.T) {
-	c := New().WithConfigPath(configFixtureWritePath)
-
-	err := c.Load()
+	c, err := New().WithConfigPath(configFixtureWritePath).Load()
 	if err != nil {
 		t.Fatalf("%s", err)
 	}
@@ -141,8 +143,10 @@ func TestConfigSetupDir(t *testing.T) {
 		t.Fatalf("Failed to create %s", configDir)
 	}
 
-	c := New().WithConfigPath(configPath).WithCreate(true)
-	c.Load()
+	_, err = New().WithConfigPath(configPath).WithCreate(true).Load()
+	if err != nil {
+		t.Fatalf("Failed to load config: %s", err)
+	}
 
 	_, err = os.Stat(configPath)
 	if err != nil {
@@ -153,8 +157,7 @@ func TestConfigSetupDir(t *testing.T) {
 }
 
 func TestIncludeBasic(t *testing.T) {
-	c := New().WithConfigPath("../test/data/include_main.yml")
-	err := c.Load()
+	c, err := New().WithConfigPath("../test/data/include_main.yml").Load()
 	if err != nil {
 		t.Fatalf("Failed to load config with includes: %s", err)
 	}
@@ -181,8 +184,7 @@ func TestIncludeBasic(t *testing.T) {
 }
 
 func TestIncludeLoop(t *testing.T) {
-	c := New().WithConfigPath("../test/data/include_loop_a.yml")
-	err := c.Load()
+	_, err := New().WithConfigPath("../test/data/include_loop_a.yml").Load()
 	if err == nil {
 		t.Fatalf("Expected error for include loop, got nil")
 	}
@@ -208,8 +210,7 @@ func TestIncludeLoop(t *testing.T) {
 }
 
 func TestIncludeNested(t *testing.T) {
-	c := New().WithConfigPath("../test/data/include_nested_level1.yml")
-	err := c.Load()
+	c, err := New().WithConfigPath("../test/data/include_nested_level1.yml").Load()
 	if err != nil {
 		t.Fatalf("Failed to load nested config: %s", err)
 	}
@@ -244,8 +245,7 @@ func TestIncludeMissingFile(t *testing.T) {
 	}
 	tmpfile.Close()
 
-	c := New().WithConfigPath(tmpfile.Name())
-	err = c.Load()
+	_, err = New().WithConfigPath(tmpfile.Name()).Load()
 	if err == nil {
 		t.Fatalf("Expected error for missing include file, got nil")
 	}
@@ -273,8 +273,7 @@ func TestConfigSetupDirWithoutCreateFlag(t *testing.T) {
 	defer cleanup()
 
 	// Try to load a config file that doesn't exist without the Create flag
-	c := New().WithConfigPath(configPath).WithCreate(false)
-	err := c.Load()
+	_, err := New().WithConfigPath(configPath).WithCreate(false).Load()
 
 	// Should get an error because the file doesn't exist and Create is false
 	if err == nil {
@@ -300,8 +299,7 @@ func TestConfigSetupDirWithCreateFlag(t *testing.T) {
 	defer cleanup()
 
 	// Create the config file with the Create flag
-	c := New().WithConfigPath(configPath).WithCreate(true)
-	err := c.Load()
+	_, err := New().WithConfigPath(configPath).WithCreate(true).Load()
 	if err != nil {
 		t.Fatalf("Expected no error when Create is true, got: %s", err)
 	}
@@ -315,8 +313,7 @@ func TestConfigSetupDirWithCreateFlag(t *testing.T) {
 
 func TestConfigExistingFileWithoutCreateFlag(t *testing.T) {
 	// Use an existing config file
-	c := New().WithConfigPath(configFixturePath).WithCreate(false)
-	err := c.Load()
+	c, err := New().WithConfigPath(configFixturePath).WithCreate(false).Load()
 
 	// Should work fine because the file exists
 	if err != nil {
@@ -351,15 +348,20 @@ func TestDefaultDatabaseName(t *testing.T) {
 }
 
 func TestConfigPathDeterminesDatabaseName(t *testing.T) {
-	// Test that when a custom config path is set, the database name is derived from it
-	c := New().WithConfigPath("foo/myapp.yml")
-	test.Equal(t, "foo/myapp.yml", c.ConfigPath, "Config path not set correctly")
-	test.Equal(t, "myapp.db", c.Config.Database, "Database name should be derived from config path")
+	// Test that when a custom config path is set, the database name is derived from it after Load()
+	c, err := New().WithConfigPath(configFixturePath).Load()
+	if err != nil {
+		t.Fatalf("Failed to load config: %s", err)
+	}
+	test.Equal(t, configFixturePath, c.ConfigPath, "Config path not set correctly")
+	test.Equal(t, "config_fixture.db", c.Config.Database, "Database name should be derived from config path")
 
-	// Test with another config path
-	c2 := New().WithConfigPath("work/ham.yml")
-	test.Equal(t, "work/ham.yml", c2.ConfigPath, "Config path not set correctly")
-	test.Equal(t, "ham.db", c2.Config.Database, "Database name should be derived from config path")
+	// Test that WithDatabase() takes precedence over computed default
+	c2, err := New().WithConfigPath(configFixturePath).WithDatabase("custom.db").Load()
+	if err != nil {
+		t.Fatalf("Failed to load config: %s", err)
+	}
+	test.Equal(t, "custom.db", c2.Config.Database, "WithDatabase should override computed default")
 }
 
 // Helper function to check if a string contains a substring

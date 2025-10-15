@@ -19,19 +19,16 @@ func main() {
 
 	debug := len(os.Args) > 2 && os.Args[2] == "-debug"
 
-	// Create a new runtime config with the specified config path
-	runtime := config.New().WithConfigPath(configPath)
+	// Create a new runtime config with the specified config path and load it
+	runtime, err := config.New().WithConfigPath(configPath).Load()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
+		os.Exit(1)
+	}
 
 	if debug {
 		fmt.Fprintf(os.Stderr, "ConfigPath: %s\n", runtime.ConfigPath)
 		fmt.Fprintf(os.Stderr, "ConfigDir: %s\n", runtime.ConfigDir)
-	}
-
-	// Load the configuration (this will process includes)
-	err := runtime.Load()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
-		os.Exit(1)
 	}
 
 	// Marshal the final configuration to YAML

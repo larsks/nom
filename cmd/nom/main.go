@@ -116,18 +116,21 @@ func (r *Import) Execute(args []string) error {
 }
 
 func getCmds() (*commands.Commands, error) {
-	runtime := config.New().
+	runtime, err := config.New().
 		WithConfigPath(options.ConfigPath).
-		WithPager(options.Pager).
 		WithPreviewFeeds(options.PreviewFeeds).
 		WithVersion(version).
-		WithCreate(options.Create)
-
-	var err error
-
-	if err = runtime.Load(); err != nil {
+		WithCreate(options.Create).
+		Load()
+	if err != nil {
 		return nil, err
 	}
+
+	// Apply command line options that should override
+	// config file options.
+	runtime = runtime.
+		WithPager(options.Pager)
+
 	var s store.Store
 	if runtime.IsPreviewMode() {
 		s, err = store.NewInMemorySQLiteStore()
