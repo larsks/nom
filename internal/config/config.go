@@ -21,8 +21,7 @@ var (
 	ErrFeedAlreadyExists  = errors.New("config.AddFeed: feed already exists")
 	ErrIncludeLoop        = errors.New("config.Load: include loop detected")
 	DefaultConfigDirName  = "nom"
-	DefaultConfigFileName = "config.yml"
-	DefaultDatabaseName   = "nom.db"
+	DefaultConfigFileName = "default.yml"
 	DefaultListFormat     = `{{ printf "%3d" .Index }}. {{ if .Item.FeedName }}{{ .Item.FeedName }}: {{ end }}{{ .Item.Title }}`
 )
 
@@ -124,6 +123,18 @@ func updateConfigPathIfDir(configPath string) string {
 	return configPath
 }
 
+// defaultDatabaseName derives the default database name from the config file path
+// For example: "config.yml" -> "config.db", "/path/to/myconfig.yml" -> "myconfig.db"
+func defaultDatabaseName(configPath string) string {
+	basename := filepath.Base(configPath)
+	// Remove the extension
+	ext := filepath.Ext(basename)
+	if ext != "" {
+		basename = basename[:len(basename)-len(ext)]
+	}
+	return basename + ".db"
+}
+
 func New() *Runtime {
 	userConfigDir, err := os.UserConfigDir()
 	if err != nil {
@@ -140,7 +151,7 @@ func New() *Runtime {
 		Version:      "",
 		Config: &Config{
 			Pager:           "",
-			Database:        DefaultDatabaseName,
+			Database:        defaultDatabaseName(configPath),
 			Feeds:           []Feed{},
 			Theme:           DefaultTheme,
 			RefreshInterval: 0,
@@ -160,6 +171,8 @@ func (r *Runtime) WithConfigPath(configPath string) *Runtime {
 	if configPath != "" {
 		r.ConfigPath = updateConfigPathIfDir(configPath)
 		r.ConfigDir, _ = filepath.Split(r.ConfigPath)
+		// Update database name to match the new config path
+		r.Config.Database = defaultDatabaseName(r.ConfigPath)
 	}
 	return r
 }

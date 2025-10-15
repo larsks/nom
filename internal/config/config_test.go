@@ -13,7 +13,7 @@ import (
 const configFixturePath = "../test/data/config_fixture.yml"
 const configFixtureWritePath = "../test/data/config_fixture_write.yml"
 const configDir = "../test/data/nom"
-const configPath = "../test/data/nom/config.yml"
+const configPath = "../test/data/nom/default.yml"
 
 func cleanup() {
 	os.RemoveAll(configDir)
@@ -23,8 +23,9 @@ func TestNewDefault(t *testing.T) {
 	c := New()
 	ucd, _ := os.UserConfigDir()
 
-	test.Equal(t, fmt.Sprintf("%s/nom/config.yml", ucd), c.ConfigPath, "Wrong defaults set")
+	test.Equal(t, fmt.Sprintf("%s/nom/default.yml", ucd), c.ConfigPath, "Wrong defaults set")
 	test.Equal(t, fmt.Sprintf("%s/nom/", ucd), c.ConfigDir, "Wrong default ConfigDir set")
+	test.Equal(t, "default.db", c.Config.Database, "Wrong default database name")
 }
 
 func TestConfigCustomPath(t *testing.T) {
@@ -326,6 +327,39 @@ func TestConfigExistingFileWithoutCreateFlag(t *testing.T) {
 	if len(c.Config.Feeds) != 3 {
 		t.Fatalf("Expected 3 feeds, got %d", len(c.Config.Feeds))
 	}
+}
+
+func TestDefaultDatabaseName(t *testing.T) {
+	tests := []struct {
+		configPath  string
+		expectedDB  string
+		description string
+	}{
+		{"config.yml", "config.db", "Simple config file"},
+		{"/path/to/myconfig.yml", "myconfig.db", "Full path config file"},
+		{"custom.yml", "custom.db", "Custom config file"},
+		{"default.yml", "default.db", "Default config file"},
+		{"/home/user/.config/nom/feeds.yml", "feeds.db", "Absolute path"},
+	}
+
+	for _, tt := range tests {
+		result := defaultDatabaseName(tt.configPath)
+		if result != tt.expectedDB {
+			t.Errorf("%s: expected %s, got %s", tt.description, tt.expectedDB, result)
+		}
+	}
+}
+
+func TestConfigPathDeterminesDatabaseName(t *testing.T) {
+	// Test that when a custom config path is set, the database name is derived from it
+	c := New().WithConfigPath("foo/myapp.yml")
+	test.Equal(t, "foo/myapp.yml", c.ConfigPath, "Config path not set correctly")
+	test.Equal(t, "myapp.db", c.Config.Database, "Database name should be derived from config path")
+
+	// Test with another config path
+	c2 := New().WithConfigPath("work/ham.yml")
+	test.Equal(t, "work/ham.yml", c2.ConfigPath, "Config path not set correctly")
+	test.Equal(t, "ham.db", c2.Config.Database, "Database name should be derived from config path")
 }
 
 // Helper function to check if a string contains a substring
