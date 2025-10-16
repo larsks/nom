@@ -305,7 +305,9 @@ func (r *Runtime) Load() (*Runtime, error) {
 		// This ensures backwards compatibility when upgrading from older versions
 		if filepath.Base(r.ConfigPath) == DefaultConfigFileName {
 			r.ConfigPath = filepath.Join(r.ConfigDir, LegacyConfigFileName)
-			err = r.setupConfigDir()
+			if fallbackErr := r.setupConfigDir(); fallbackErr == nil {
+				err = nil // Fallback succeeded, clear the error
+			}
 		}
 		if err != nil {
 			return nil, fmt.Errorf("config Load: %w", err)
