@@ -1,7 +1,18 @@
+VERSION = $(shell git describe --tags --exact-match 2> /dev/null || echo dev)
+COMMIT = $(shell git rev-parse --short=10 HEAD)
+DATE = $(shell date -u +"%Y-%m-%dT%H:%M:%S")
+
+PKG=github.com/guyfedwards/nom/v2
+
+GOLDFLAGS = \
+	    -X '$(PKG)/internal/version.BuildVersion=$(VERSION)' \
+	    -X '$(PKG)/internal/version.BuildRef=$(COMMIT)' \
+	    -X '$(PKG)/internal/version.BuildDate=$(DATE)'
+
 .PHONY: build test testw sqlite vhs
 
 build:
-	go build -o nom cmd/nom/main.go
+	go build -ldflags "$(GOLDFLAGS)" -o nom cmd/nom/main.go
 
 test:
 	go test -v ./internal/...
