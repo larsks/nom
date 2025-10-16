@@ -9,6 +9,7 @@ import (
 	"github.com/guyfedwards/nom/v2/internal/commands"
 	"github.com/guyfedwards/nom/v2/internal/config"
 	"github.com/guyfedwards/nom/v2/internal/store"
+	"github.com/guyfedwards/nom/v2/internal/version"
 )
 
 type Options struct {
@@ -21,7 +22,6 @@ type Options struct {
 
 var (
 	options Options
-	version = "dev"
 )
 
 // Setup subcommands
@@ -65,12 +65,14 @@ func (r *List) Execute(args []string) error {
 type Version struct{}
 
 func (r *Version) Execute(args []string) error {
-	_, err := getCmds()
-	if err != nil {
-		return err
+	fmt.Print(version.BuildVersion)
+	if version.BuildRef != "" {
+		fmt.Printf(" (%s)", version.BuildRef)
 	}
-
-	fmt.Printf("%s\n", version)
+	if version.BuildDate != "" {
+		fmt.Printf(" on %s", version.BuildDate)
+	}
+	fmt.Println()
 	return nil
 }
 
@@ -119,7 +121,7 @@ func getCmds() (*commands.Commands, error) {
 	runtime, err := config.New().
 		WithConfigPath(options.ConfigPath).
 		WithPreviewFeeds(options.PreviewFeeds).
-		WithVersion(version).
+		WithVersion(version.BuildVersion).
 		WithCreate(options.Create).
 		Load()
 	if err != nil {
