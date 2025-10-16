@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"dario.cat/mergo"
 	"gopkg.in/yaml.v3"
 
 	"github.com/guyfedwards/nom/v2/internal/constants"
@@ -212,68 +213,6 @@ func loadConfigFile(path string) (*Config, error) {
 	return &cfg, nil
 }
 
-// mergeConfig merges src config into dst config, with src values taking precedence
-func mergeConfig(dst, src *Config) {
-	// Only override if src has non-zero values
-	if src.ShowRead {
-		dst.ShowRead = src.ShowRead
-	}
-	if src.AutoRead {
-		dst.AutoRead = src.AutoRead
-	}
-	if len(src.Feeds) > 0 {
-		dst.Feeds = src.Feeds
-	}
-	if src.Database != "" {
-		dst.Database = src.Database
-	}
-	if len(src.Openers) > 0 {
-		dst.Openers = src.Openers
-	}
-	if src.ShowFavourites {
-		dst.ShowFavourites = src.ShowFavourites
-	}
-	if src.Filtering.DefaultIncludeFeedName {
-		dst.Filtering = src.Filtering
-	}
-	if src.RefreshInterval != 0 {
-		dst.RefreshInterval = src.RefreshInterval
-	}
-	if src.HTTPOptions != nil {
-		dst.HTTPOptions = src.HTTPOptions
-	}
-	if len(src.Ordering) > 0 {
-		dst.Ordering = src.Ordering
-	}
-	if len(src.Theme.ReadIcon) > 0 {
-		dst.Theme.ReadIcon = src.Theme.ReadIcon
-	}
-	if src.Theme.Glamour != "" {
-		dst.Theme.Glamour = src.Theme.Glamour
-	}
-	if src.Theme.SelectedItemColor != "" {
-		dst.Theme.SelectedItemColor = src.Theme.SelectedItemColor
-	}
-	if src.Theme.TitleColor != "" {
-		dst.Theme.TitleColor = src.Theme.TitleColor
-	}
-	if src.Theme.TitleColorFg != "" {
-		dst.Theme.TitleColorFg = src.Theme.TitleColorFg
-	}
-	if src.Theme.FilterColor != "" {
-		dst.Theme.FilterColor = src.Theme.FilterColor
-	}
-	if src.Pager != "" {
-		dst.Pager = src.Pager
-	}
-	if src.Backends != nil {
-		dst.Backends = src.Backends
-	}
-	if len(src.Include) > 0 {
-		dst.Include = src.Include
-	}
-}
-
 // loadConfigWithIncludes recursively loads config files with include support
 // visited tracks files already loaded to detect include loops
 func (r *Runtime) loadConfigWithIncludes(configPath string, visited map[string]bool) (*Config, error) {
@@ -298,15 +237,7 @@ func (r *Runtime) loadConfigWithIncludes(configPath string, visited map[string]b
 	// Process includes in order
 	if len(cfg.Include) > 0 {
 		configDir := filepath.Dir(configPath)
-		baseConfig := &Config{
-			Database:  DefaultDatabaseName,
-			Theme:     DefaultTheme,
-			Ordering:  constants.DefaultOrdering,
-			Filtering: FilterConfig{DefaultIncludeFeedName: false},
-			HTTPOptions: &HTTPOptions{
-				MinTLSVersion: tls.VersionName(tls.VersionTLS12),
-			},
-		}
+		baseConfig := &Config{}
 
 		for _, includePath := range cfg.Include {
 			resolvedPath := resolveIncludePath(configDir, includePath)
@@ -316,11 +247,15 @@ func (r *Runtime) loadConfigWithIncludes(configPath string, visited map[string]b
 				return nil, fmt.Errorf("config.loadConfigWithIncludes: error loading %s: %w", includePath, err)
 			}
 
-			mergeConfig(baseConfig, includedCfg)
+			if err := mergo.Merge(baseConfig, includedCfg, mergo.WithOverride); err != nil {
+				return nil, fmt.Errorf("config.loadConfigWithIncludes: error merging %s: %w", includePath, err)
+			}
 		}
 
 		// Merge the current config on top of all includes
-		mergeConfig(baseConfig, cfg)
+		if err := mergo.Merge(baseConfig, cfg, mergo.WithOverride); err != nil {
+			return nil, fmt.Errorf("config.loadConfigWithIncludes: error merging base config: %w", err)
+		}
 		cfg = baseConfig
 	}
 
@@ -347,59 +282,18 @@ func (r *Runtime) Load() error {
 		}
 	}
 
-	// Merge loaded config with runtime config, respecting priority
-	// (command-line flags and builder methods take precedence over file)
-	r.Config.ShowRead = fileConfig.ShowRead
-	r.Config.AutoRead = fileConfig.AutoRead
-	r.Config.Feeds = fileConfig.Feeds
-	if fileConfig.Database != "" {
-		r.Config.Database = fileConfig.Database
-	}
-	r.Config.Openers = fileConfig.Openers
-	r.Config.ShowFavourites = fileConfig.ShowFavourites
-	r.Config.Filtering = fileConfig.Filtering
-	r.Config.RefreshInterval = fileConfig.RefreshInterval
+	// Store the pager value before merging (command-line flags take precedence)
+	existingPager := r.Config.Pager
 
-	if fileConfig.HTTPOptions != nil {
-		r.Config.HTTPOptions = fileConfig.HTTPOptions
+	// Merge loaded config with runtime config
+	// fileConfig values override r.Config defaults (except pager, handled below)
+	if err := mergo.Merge(r.Config, fileConfig, mergo.WithOverride); err != nil {
+		return fmt.Errorf("config.Load: error merging config: %w", err)
 	}
 
-	if len(fileConfig.Ordering) > 0 {
-		r.Config.Ordering = fileConfig.Ordering
-	}
-
-	if len(fileConfig.Theme.ReadIcon) > 0 {
-		r.Config.Theme.ReadIcon = fileConfig.Theme.ReadIcon
-	}
-
-	if fileConfig.Theme.Glamour != "" {
-		r.Config.Theme.Glamour = fileConfig.Theme.Glamour
-	}
-
-	if fileConfig.Theme.SelectedItemColor != "" {
-		r.Config.Theme.SelectedItemColor = fileConfig.Theme.SelectedItemColor
-	}
-
-	if fileConfig.Theme.TitleColor != "" {
-		r.Config.Theme.TitleColor = fileConfig.Theme.TitleColor
-	}
-
-	if fileConfig.Theme.TitleColorFg != "" {
-		r.Config.Theme.TitleColorFg = fileConfig.Theme.TitleColorFg
-	}
-
-	if fileConfig.Theme.FilterColor != "" {
-		r.Config.Theme.FilterColor = fileConfig.Theme.FilterColor
-	}
-
-	// only set pager if it's not defined already, config file is lower
-	// precedence than flags/env that can be passed to New
-	if r.Config.Pager == "" {
-		r.Config.Pager = fileConfig.Pager
-	}
-
-	if len(fileConfig.Include) > 0 {
-		r.Config.Include = fileConfig.Include
+	// Restore pager if it was set via command-line (higher precedence than file)
+	if existingPager != "" {
+		r.Config.Pager = existingPager
 	}
 
 	// Process backends and fetch feeds from external sources
