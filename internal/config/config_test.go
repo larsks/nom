@@ -327,6 +327,49 @@ func TestConfigExistingFileWithoutCreateFlag(t *testing.T) {
 	}
 }
 
+func TestPreviewModeWithoutConfigFile(t *testing.T) {
+	// Clean up first to ensure the file doesn't exist
+	os.RemoveAll(configDir)
+	defer cleanup()
+
+	// Try to load with preview feeds but no config file
+	previewFeeds := []string{"https://example.com/feed1.xml", "https://example.com/feed2.xml"}
+	c, err := New().WithConfigPath(configPath).WithPreviewFeeds(previewFeeds).Load()
+
+	// Should work fine because we're in preview mode
+	if err != nil {
+		t.Fatalf("Expected no error when using preview feeds without config file, got: %s", err)
+	}
+
+	// Verify we're in preview mode
+	if !c.IsPreviewMode() {
+		t.Fatalf("Should be in preview mode")
+	}
+
+	// Verify preview feeds are used
+	feeds := c.GetFeeds()
+	if len(feeds) != 2 {
+		t.Fatalf("Expected 2 preview feeds, got %d", len(feeds))
+	}
+	if feeds[0].URL != "https://example.com/feed1.xml" {
+		t.Fatalf("Expected first feed to be https://example.com/feed1.xml, got %s", feeds[0].URL)
+	}
+	if feeds[1].URL != "https://example.com/feed2.xml" {
+		t.Fatalf("Expected second feed to be https://example.com/feed2.xml, got %s", feeds[1].URL)
+	}
+
+	// Verify default config values are used
+	if c.Config.Theme.Glamour != "dark" {
+		t.Fatalf("Expected default theme glamour to be 'dark', got %s", c.Config.Theme.Glamour)
+	}
+
+	// Verify config file was NOT created
+	_, statErr := os.Stat(configPath)
+	if statErr == nil {
+		t.Fatalf("Config file should not have been created in preview mode")
+	}
+}
+
 func TestDefaultDatabaseName(t *testing.T) {
 	tests := []struct {
 		configPath  string

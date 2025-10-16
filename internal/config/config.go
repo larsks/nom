@@ -303,6 +303,18 @@ func (r *Runtime) Load() (*Runtime, error) {
 		}
 	}
 
+	// If we're in preview mode and config file doesn't exist, skip loading
+	// and use the defaults from New()
+	_, statErr := os.Stat(r.ConfigPath)
+	if r.IsPreviewMode() && errors.Is(statErr, os.ErrNotExist) {
+		// Just use default config values - no need to load file
+		// Database name will be computed below
+		if r.Config.Database == "" {
+			r.Config.Database = defaultDatabaseName(r.ConfigPath)
+		}
+		return r, nil
+	}
+
 	// Load config with include support
 	visited := make(map[string]bool)
 	fileConfig, err := r.loadConfigWithIncludes(r.ConfigPath, visited)
@@ -413,6 +425,12 @@ func (r *Runtime) setupConfigDir() error {
 
 	// if configFile exists, do nothing
 	if !errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+
+	// we don't need a configuration if we're running in preview mode
+	// (we'll use default config values and feeds from the command line)
+	if r.IsPreviewMode() {
 		return nil
 	}
 
