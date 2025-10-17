@@ -21,6 +21,9 @@ func cleanup() {
 }
 
 func TestNewDefault(t *testing.T) {
+	os.Unsetenv("NOM_CONFIG_DIR")
+	os.Unsetenv("NOM_CONFIG_FILE")
+
 	c, err := New().WithCreate(true).Load()
 	if err != nil {
 		t.Fatalf("Failed to load config: %s", err)

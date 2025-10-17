@@ -136,18 +136,27 @@ func defaultDatabaseName(configPath string) string {
 	return basename + ".db"
 }
 
-func New() *Runtime {
-	userConfigDir, err := os.UserConfigDir()
-	if err != nil {
-		userConfigDir = ""
+func getNomConfigDir() string {
+	nomConfigDir := os.Getenv("NOM_CONFIG_DIR")
+	if nomConfigDir == "" {
+		userConfigDir, err := os.UserConfigDir()
+		if err != nil {
+			userConfigDir = ""
+		}
+
+		nomConfigDir = filepath.Join(userConfigDir, DefaultConfigDirName)
 	}
 
-	configPath := filepath.Join(userConfigDir, DefaultConfigDirName, DefaultConfigFileName)
-	configDir, _ := filepath.Split(configPath)
+	return nomConfigDir
+}
+
+func New() *Runtime {
+	configDir := getNomConfigDir()
+	configPath := filepath.Join(configDir, DefaultConfigFileName)
 
 	return &Runtime{
 		ConfigPath:   configPath,
-		ConfigDir:    configDir,
+		ConfigDir:    configDir + string(filepath.Separator),
 		PreviewFeeds: []Feed{},
 		Version:      "",
 		Config: &Config{
