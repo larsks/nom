@@ -157,7 +157,7 @@ func New() *Runtime {
 
 	return &Runtime{
 		ConfigPath:   configPath,
-		ConfigDir:    configDir + string(filepath.Separator),
+		ConfigDir:    configDir,
 		PreviewFeeds: []Feed{},
 		Version:      "",
 		Config: &Config{
@@ -182,6 +182,25 @@ func (r *Runtime) WithConfigPath(configPath string) *Runtime {
 	if configPath != "" {
 		r.ConfigPath = updateConfigPathIfDir(configPath)
 		r.ConfigDir, _ = filepath.Split(r.ConfigPath)
+	}
+	return r
+}
+
+func (r *Runtime) WithConfigName(configName string) *Runtime {
+	if configName != "" {
+		for _, ext := range []string{"", ".yaml", ".yml"} {
+			r.ConfigPath = filepath.Join(r.ConfigDir, fmt.Sprintf("%s%s", configName, ext))
+			if _, err := os.Stat(r.ConfigPath); err == nil {
+				break
+			}
+		}
+	}
+	return r
+}
+
+func (r *Runtime) WithConfigDir(configDir string) *Runtime {
+	if configDir != "" {
+		r.ConfigDir = configDir
 	}
 	return r
 }

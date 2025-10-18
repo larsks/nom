@@ -16,6 +16,8 @@ type Options struct {
 	Verbose      bool     `short:"v" long:"verbose" description:"Show verbose logging"`
 	Pager        string   `short:"p" long:"pager" description:"Pager to use for longer output. Set to false for no pager"`
 	ConfigPath   string   `short:"c" long:"config-path" description:"Location of config.yml" env:"NOM_CONFIG_FILE"`
+	ConfigDir    string   `short:"d" long:"config-dir" description:"Where to find config files"`
+	ConfigName   string   `short:"N" long:"config-name" description:"Name of a config file in config dir"`
 	PreviewFeeds []string `short:"f" long:"feed" description:"Feed(s) URL(s) for preview"`
 	Create       bool     `long:"create" description:"Create config file if it doesn't exist"`
 }
@@ -120,6 +122,8 @@ func (r *Import) Execute(args []string) error {
 func getCmds() (*commands.Commands, error) {
 	runtime, err := config.New().
 		WithConfigPath(options.ConfigPath).
+		WithConfigDir(options.ConfigDir).
+		WithConfigName(options.ConfigName).
 		WithPreviewFeeds(options.PreviewFeeds).
 		WithVersion(version.BuildVersion).
 		WithCreate(options.Create).
