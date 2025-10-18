@@ -31,7 +31,7 @@ func TestNewDefault(t *testing.T) {
 	ucd, _ := os.UserConfigDir()
 
 	test.Equal(t, fmt.Sprintf("%s/nom/default.yml", ucd), c.ConfigPath, "Wrong defaults set")
-	test.Equal(t, fmt.Sprintf("%s/nom/", ucd), c.ConfigDir, "Wrong default ConfigDir set")
+	test.Equal(t, fmt.Sprintf("%s/nom", ucd), c.ConfigDir, "Wrong default ConfigDir set")
 	test.Equal(t, "default.db", c.Config.Database, "Wrong default database name")
 }
 
