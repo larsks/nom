@@ -86,6 +86,7 @@ type Config struct {
 	RefreshInterval int                `yaml:"refreshinterval,omitempty"`
 	ListFormat      string             `yaml:"listformat,omitempty"`
 	Include         []string           `yaml:"include,omitempty"`
+	UserAgent       string             `yaml:"useragent,omitempty"`
 }
 
 // Runtime contains non-serializable runtime settings and the YAML config

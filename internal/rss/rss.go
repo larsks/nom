@@ -34,7 +34,7 @@ type RSS struct {
 	Channel Channel `xml:"channel"`
 }
 
-func Fetch(f config.Feed, httpOpts *config.HTTPOptions, version string) (RSS, error) {
+func Fetch(f config.Feed, httpOpts *config.HTTPOptions, version, userAgent string) (RSS, error) {
 	fp := gofeed.NewParser()
 
 	tr := &http.Transport{
@@ -53,7 +53,11 @@ func Fetch(f config.Feed, httpOpts *config.HTTPOptions, version string) (RSS, er
 		Transport: tr,
 	}
 
-	fp.UserAgent = fmt.Sprintf("nom/%s", version)
+	if userAgent != "" {
+		fp.UserAgent = userAgent
+	} else {
+		fp.UserAgent = fmt.Sprintf("nom/%s", version)
+	}
 
 	feed, err := fp.ParseURL(f.URL)
 	if err != nil {

@@ -102,10 +102,10 @@ func defaultView(items []store.Item) (is []store.Item) {
 	return is
 }
 
-func fetchFeed(ch chan FetchResultError, wg *sync.WaitGroup, feed config.Feed, httpOpts *config.HTTPOptions, version string) {
+func (c Commands) fetchFeed(ch chan FetchResultError, wg *sync.WaitGroup, feed config.Feed, httpOpts *config.HTTPOptions, version string) {
 	defer wg.Done()
 
-	r, err := rss.Fetch(feed, httpOpts, version)
+	r, err := rss.Fetch(feed, httpOpts, version, c.runtime.Config.UserAgent)
 	if err != nil {
 		ch <- FetchResultError{res: rss.RSS{}, err: err, url: feed.URL}
 		return
