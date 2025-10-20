@@ -28,9 +28,10 @@ var (
 )
 
 type Feed struct {
-	URL  string   `yaml:"url"`
-	Name string   `yaml:"name,omitempty"`
-	Tags []string `yaml:"tags,omitempty"`
+	URL         string       `yaml:"url"`
+	Name        string       `yaml:"name,omitempty"`
+	HTTPOptions *HTTPOptions `yaml:"http,omitempty"`
+	Tags        []string     `yaml:"tags,omitempty"`
 }
 
 type MinifluxBackend struct {

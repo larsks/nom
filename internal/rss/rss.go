@@ -49,6 +49,14 @@ func Fetch(f config.Feed, httpOpts *config.HTTPOptions, version, userAgent strin
 		}
 	}
 
+	if f.HTTPOptions != nil {
+		if version, err := config.TLSVersion(f.HTTPOptions.MinTLSVersion); err == nil {
+			tr.TLSClientConfig = &tls.Config{
+				MinVersion: version,
+			}
+		}
+	}
+
 	fp.Client = &http.Client{
 		Transport: tr,
 	}
