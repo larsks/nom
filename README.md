@@ -247,20 +247,13 @@ You can limit results to feed that have certain tags using the `tag:` qualifier:
 
 If you want to include the feed name in the default filtering query, use `config.filtering.defaultIncludeFeedName: true`. This simplifies the above `f:xxx` queries but means that you can't filter by multiple feeds at once, e.g. `f:xxx f:yyy`.
 
-### Filter styles cannot be combined
+### Combining queries
 
-In the current implementation, you *cannot* combine different types of filters. That is, you can do this:
+You can combine `feed:`, `tag:`, and simple keyword queries:
 
-- `feed:foo feed:bar`
-- `tag:foo tag:bar`
+    feed:foo tag:bar keyword1
 
-But you cannot combine `feed:` and `tag:` queries:
-
-- `feed:foo tag:news` will return all results that match `feed:foo` and will ignore the `tag:` qualifier.
-
-And you cannot combine simple keyword searches with any qualifiers:
-
-- `tag:news boston` will return all results that match `tag:news` and will ignore the additional keyword.
+This would search for items in feeds that contain `foo` in the feed name, that are tagged with `bar`, and that contain `keyword1` somewhere in the title.
 
 ## Building and Running via Docker
 

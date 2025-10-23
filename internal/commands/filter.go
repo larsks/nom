@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
@@ -25,38 +24,6 @@ type Filterer struct {
 	Tags      []string
 	Term      FilterTerm
 	Config    config.Config
-}
-
-// Generalized function for filtering over a list of options (Used for filtering by feed name and tags)
-func (f *Filterer) FilterAgainstStrings(filterValues []string, targetFilterValues []string) fuzzy.Matches {
-	// find matching feeds and keep the best matching one in case there are multiple
-	ranksGrouped := map[int]fuzzy.Match{}
-	for _, feedName := range filterValues {
-		matches := fuzzy.Find(feedName, targetFilterValues)
-		for _, m := range matches {
-			prevMatch, ok := ranksGrouped[m.Index]
-			if !ok {
-				ranksGrouped[m.Index] = m
-			} else {
-				if prevMatch.Score < m.Score {
-					ranksGrouped[m.Index] = m
-				}
-			}
-		}
-	}
-
-	var ranks fuzzy.Matches
-	for _, m := range ranksGrouped {
-		ranks = append(ranks, m)
-	}
-
-	// keep the same order as the input
-	// this keeps the same order of items in the UI and prevents the items from being shuffled
-	slices.SortStableFunc(ranks, func(left fuzzy.Match, right fuzzy.Match) int {
-		return right.Index - left.Index
-	})
-
-	return ranks
 }
 
 // Breaks what's returned from TUIItem.FilterValue() into a TUIItem.
@@ -120,12 +87,45 @@ func (f *Filterer) ExtractFiltersFor(tags ...string) []string {
 	return extractedTags
 }
 
-// Runs all filters
-func (f *Filterer) Filter(targets []string) []fuzzy.Match {
-	var targetTitles []string
-	var targetFeedNames []string
-	var targetTags []string
+// filterByConstraints filters candidates by requiring ALL filter values to match
+// Returns a map of indices that match all constraints with their best scores
+func (f *Filterer) filterByConstraints(filterValues []string, targets []string, extractField func(TUIItem) string) map[int]int {
+	if len(filterValues) == 0 {
+		return nil
+	}
 
+	// For each target, check if it matches ALL filter values (AND logic)
+	matchedIndices := make(map[int]int)
+
+	for idx, target := range targets {
+		item := f.GetItem(target)
+		fieldValue := extractField(item)
+
+		// Check if this item matches ALL filter values
+		allMatch := true
+		totalScore := 0
+
+		for _, filterVal := range filterValues {
+			matches := fuzzy.Find(filterVal, []string{fieldValue})
+			if len(matches) == 0 || matches[0].Score == 0 {
+				allMatch = false
+				break
+			}
+			totalScore += matches[0].Score
+		}
+
+		if allMatch {
+			matchedIndices[idx] = totalScore
+		}
+	}
+
+	return matchedIndices
+}
+
+// Runs all filters with combined query support
+func (f *Filterer) Filter(targets []string) []fuzzy.Match {
+	// Build target fields for all items
+	var targetTitles []string
 	for _, target := range targets {
 		i := f.GetItem(target)
 		title := i.Title
@@ -133,20 +133,110 @@ func (f *Filterer) Filter(targets []string) []fuzzy.Match {
 			title = strings.Join([]string{i.FeedName, i.Title}, " ")
 		}
 		targetTitles = append(targetTitles, title)
-		targetFeedNames = append(targetFeedNames, i.FeedName)
-		targetTags = append(targetTags, strings.Join(i.Tags, " "))
 	}
 
-	var ranks fuzzy.Matches
+	// Start with all indices as candidates
+	candidateIndices := make(map[int]int) // index -> score
+	for idx := range targets {
+		candidateIndices[idx] = 0
+	}
+
+	// Apply feed name filter as hard constraint (AND logic for multiple feeds)
 	if len(f.FeedNames) > 0 {
-		ranks = f.FilterAgainstStrings(f.FeedNames, targetFeedNames)
-	} else if len(f.Tags) > 0 {
-		ranks = f.FilterAgainstStrings(f.Tags, targetTags)
-	} else {
-		ranks = fuzzy.Find(f.Term.Title, targetTitles)
+		feedMatches := f.filterByConstraints(f.FeedNames, targets, func(item TUIItem) string {
+			return item.FeedName
+		})
+		if len(feedMatches) == 0 {
+			// No matches for feed filter, return empty results
+			return []fuzzy.Match{}
+		}
+		// Update candidates to intersection
+		candidateIndices = feedMatches
 	}
 
-	sort.Stable(ranks)
+	// Apply tag filter as hard constraint (AND logic for multiple tags)
+	if len(f.Tags) > 0 {
+		tagMatches := f.filterByConstraints(f.Tags, targets, func(item TUIItem) string {
+			return strings.Join(item.Tags, " ")
+		})
+		if len(tagMatches) == 0 {
+			// No matches for tag filter, return empty results
+			return []fuzzy.Match{}
+		}
+
+		// Intersect with existing candidates
+		if len(f.FeedNames) > 0 {
+			// We already have feed constraints, intersect them
+			newCandidates := make(map[int]int)
+			for idx := range candidateIndices {
+				if score, exists := tagMatches[idx]; exists {
+					newCandidates[idx] = candidateIndices[idx] + score
+				}
+			}
+			candidateIndices = newCandidates
+		} else {
+			// Only tag constraint
+			candidateIndices = tagMatches
+		}
+	}
+
+	// If no results after constraint filtering, return empty
+	if len(candidateIndices) == 0 {
+		return []fuzzy.Match{}
+	}
+
+	// Build list of candidate targets for title search
+	var candidateTargets []string
+	var candidateMapping []int // maps result index to original index
+	for idx := range targets {
+		if _, exists := candidateIndices[idx]; exists {
+			candidateTargets = append(candidateTargets, targetTitles[idx])
+			candidateMapping = append(candidateMapping, idx)
+		}
+	}
+
+	// Apply title fuzzy search on remaining candidates
+	var ranks fuzzy.Matches
+	trimmedTitle := strings.TrimSpace(f.Term.Title)
+	if trimmedTitle != "" {
+		// Perform fuzzy search on title
+		titleMatches := fuzzy.Find(trimmedTitle, candidateTargets)
+
+		// Combine title scores with constraint scores
+		for _, match := range titleMatches {
+			originalIdx := candidateMapping[match.Index]
+			constraintScore := candidateIndices[originalIdx]
+
+			ranks = append(ranks, fuzzy.Match{
+				Str:            match.Str,
+				Index:          originalIdx,
+				MatchedIndexes: match.MatchedIndexes,
+				Score:          match.Score + constraintScore,
+			})
+		}
+	} else {
+		// No title search, return all candidates ranked by constraint scores
+		// Iterate in order to maintain stable results
+		for _, idx := range candidateMapping {
+			score := candidateIndices[idx]
+			ranks = append(ranks, fuzzy.Match{
+				Str:            targetTitles[idx],
+				Index:          idx,
+				MatchedIndexes: []int{},
+				Score:          score,
+			})
+		}
+	}
+
+	// Sort by score (descending), then by original index (ascending) for stability
+	slices.SortStableFunc(ranks, func(left fuzzy.Match, right fuzzy.Match) int {
+		// First compare by score (descending)
+		if left.Score != right.Score {
+			return right.Score - left.Score
+		}
+		// For equal scores, maintain original order by index (ascending)
+		return left.Index - right.Index
+	})
 
 	return ranks
 }
