@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/jessevdk/go-flags"
 
@@ -122,6 +123,25 @@ func (r *Import) Execute(args []string) error {
 	return cmds.ImportFeeds(r.Positional.Source)
 }
 
+type Search struct {
+	Positional struct {
+		Query []string `positional-arg-name:"QUERY" required:"yes" description:"Search query (supports feed:, tag:, and text search)"`
+	} `positional-args:"yes"`
+}
+
+func (r *Search) Execute(args []string) error {
+	cmds, err := getCmds()
+	if err != nil {
+		return err
+	}
+
+	query := ""
+	if len(r.Positional.Query) > 0 {
+		query = strings.Join(r.Positional.Query, " ")
+	}
+	return cmds.Search(query)
+}
+
 func getCmds() (*commands.Commands, error) {
 	runtime, err := config.New().
 		WithConfigPath(options.ConfigPath).
@@ -166,6 +186,7 @@ func main() {
 	parser.AddCommand("refresh", "Refresh feeds", "refresh feed(s) without opening TUI", &Refresh{})
 	parser.AddCommand("unread", "Count unread", "Get count of unread items", &Unread{})
 	parser.AddCommand("import", "Import feeds", "Import feeds from an OMPL file", &Import{})
+	parser.AddCommand("search", "Search items", "Search feed items by query", &Search{})
 
 	// parse the command line arguments
 	args, err := parser.Parse()

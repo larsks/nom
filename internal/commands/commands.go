@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -12,6 +13,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"text/template"
 	"time"
 
 	md "github.com/JohannesKaufmann/html-to-markdown"
@@ -299,6 +301,77 @@ func (c Commands) CountUnread() int {
 		log.Println(err)
 	}
 	return count
+}
+
+func (c Commands) Search(query string) error {
+	items, err := c.GetAllFeeds()
+	if err != nil {
+		return fmt.Errorf("commands Search: %w", err)
+	}
+
+	// Convert items to filter values (format: "title||feedname||tag1||tag2||...")
+	var filterValues []string
+	for _, item := range items {
+		tuiItem := ItemToTUIItem(item)
+		filterValues = append(filterValues, tuiItem.FilterValue())
+	}
+
+	// Create filterer and perform search
+	filterer := NewFilterer(query, *c.runtime.Config)
+	matches := filterer.Filter(filterValues)
+
+	if len(matches) == 0 {
+		fmt.Println("No matches found.")
+		return nil
+	}
+
+	// Parse list format template
+	var listTemplate *template.Template
+	if c.runtime.Config.ListFormat != "" {
+		listTemplate, err = template.New("listformat").Parse(c.runtime.Config.ListFormat)
+		if err != nil {
+			return fmt.Errorf("commands Search: error parsing list format: %w", err)
+		}
+	}
+
+	// Format and output results
+	output := ""
+	for i, match := range matches {
+		item := items[match.Index]
+		tuiItem := ItemToTUIItem(item)
+
+		var str string
+		if listTemplate != nil {
+			var buf bytes.Buffer
+			data := struct {
+				Index int
+				Item  TUIItem
+			}{
+				Index: i + 1,
+				Item:  tuiItem,
+			}
+
+			err := listTemplate.Execute(&buf, data)
+			if err != nil {
+				// Fallback to simple display on error
+				str = fmt.Sprintf("%d. %s", i+1, tuiItem.Title)
+			} else {
+				str = buf.String()
+			}
+		} else {
+			// Fallback if no template
+			str = fmt.Sprintf("%d. %s", i+1, tuiItem.Title)
+		}
+
+		output += str + "\n"
+	}
+
+	if c.runtime.Config.Pager == "false" {
+		fmt.Print(output)
+		return nil
+	}
+
+	return outputToPager(output)
 }
 
 func (c Commands) GetGlamourisedArticle(ID int) (string, error) {
